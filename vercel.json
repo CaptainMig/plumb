@@ -1,9 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/pipeline", "destination": "/pipeline.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/", "destination": "/index.html" }
-  ],
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
