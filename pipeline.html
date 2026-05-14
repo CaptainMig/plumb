@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plumb · Data Pipeline Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #13110e;
+  --bg2: #1d1a16;
+  --bg3: #26231e;
+  --ink: #f0ece4;
+  --ink2: rgba(240,236,228,0.65);
+  --ink3: rgba(240,236,228,0.32);
+  --line: rgba(255,255,255,0.07);
+  --line2: rgba(255,255,255,0.04);
+  --teal: #5aabb0;
+  --teal-bg: rgba(90,171,176,0.12);
+  --gold: #c8971f;
+  --gold-bg: rgba(200,151,31,0.12);
+  --price: #a07840;
+  --price-bg: rgba(160,120,64,0.12);
+  --auto: #6fd49a;
+  --auto-bg: rgba(111,212,154,0.14);
+  --semi: #e6b84a;
+  --semi-bg: rgba(230,184,74,0.14);
+  --human: #c5a0f0;
+  --human-bg: rgba(197,160,240,0.14);
+  --commit: #6fd49a;
+  --toxic: #f08080;
+  --consult: #c5a0f0;
+  --ff: 'IBM Plex Sans', system-ui, sans-serif;
+  --ff-display: 'Fraunces', Georgia, serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff);
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding: 48px 32px 64px;
+  min-width: 960px;
+}
+
+/* ── HEADER ── */
+.doc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 0.5px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--ff-display);
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.brand svg { color: var(--teal); }
+
+.doc-meta {
+  text-align: right;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: 0.08em;
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+.doc-title {
+  font-family: var(--ff-display);
+  font-weight: 300;
+  font-size: 28px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+
+.doc-sub {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 36px;
+}
+
+/* ── LEGEND ── */
+.legend {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 36px;
+  padding: 12px 16px;
+  background: var(--bg2);
+  border: 0.5px solid var(--line);
+  width: fit-content;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.legend-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── BRIEF INPUT ── */
+.brief-block {
+  background: var(--bg2);
+  border: 0.5px solid var(--line);
+  border-top: 2px solid var(--ink3);
+  padding: 20px 24px;
+  margin-bottom: 0;
+  position: relative;
+}
+
+.block-eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 14px;
+}
+
+.brief-fields {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+.brief-field {
+  padding: 10px 14px 10px 0;
+  border-right: 0.5px solid var(--line);
+}
+
+.brief-field:last-child, .brief-field:nth-child(4) { border-right: none; }
+.brief-field:nth-child(5), .brief-field:nth-child(6), .brief-field:nth-child(7), .brief-field:nth-child(8) {
+  border-top: 0.5px solid var(--line2);
+}
+
+.bf-num {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  color: var(--ink3);
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+}
+
+.bf-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.bf-desc {
+  font-size: 10.5px;
+  color: var(--ink3);
+  line-height: 1.4;
+}
+
+/* ── FLOW ARROW ── */
+.flow-arrow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 36px;
+  position: relative;
+}
+
+.flow-arrow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0; bottom: 0;
+  width: 0.5px;
+  background: var(--line);
+}
+
+.flow-arrow-head {
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--ink3);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── ROUTING NODE ── */
+.router-block {
+  background: var(--bg3);
+  border: 0.5px solid var(--line);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.router-label {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.router-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink3);
+}
+
+/* ── THREE-WAY SPLIT ── */
+.split-row {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0;
+}
+
+/* ── LAYER COLUMN ── */
+.layer-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.layer-header {
+  padding: 16px 18px;
+  border-top: 2px solid;
+  border-bottom: 0.5px solid var(--line);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lh-opt { border-color: var(--teal); background: var(--bg2); }
+.lh-auth { border-color: var(--gold); background: var(--bg2); }
+.lh-price { border-color: var(--price); background: var(--bg2); }
+
+.layer-name {
+  font-family: var(--ff-display);
+  font-weight: 400;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.ln-opt { color: var(--teal); }
+.ln-auth { color: var(--gold); }
+.ln-price { color: var(--price); }
+
+.layer-mode {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* ── METRIC ROWS ── */
+.metric-block {
+  background: var(--bg2);
+  flex: 1;
+}
+
+.metric-row {
+  padding: 11px 18px;
+  border-bottom: 0.5px solid var(--line2);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.metric-row:last-child { border-bottom: none; }
+
+.metric-row:hover { background: var(--bg3); }
+
+.mr-left {}
+
+.mr-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.mr-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.src-tag {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--bg3);
+  color: var(--ink3);
+  border: 0.5px solid var(--line);
+}
+
+.mr-desc {
+  font-size: 10.5px;
+  color: var(--ink3);
+  line-height: 1.45;
+}
+
+.mr-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+.mode-badge {
+  font-family: var(--ff-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.mb-auto { background: var(--auto-bg); color: var(--auto); border: 0.5px solid rgba(111,212,154,0.25); }
+.mb-semi { background: var(--semi-bg); color: var(--semi); border: 0.5px solid rgba(230,184,74,0.25); }
+.mb-human { background: var(--human-bg); color: var(--human); border: 0.5px solid rgba(197,160,240,0.25); }
+
+.layer-score-row {
+  background: var(--bg3);
+  border-top: 0.5px solid var(--line);
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lsr-label {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.lsr-score {
+  font-family: var(--ff-mono);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.score-opt { color: var(--teal); }
+.score-auth { color: var(--gold); }
+.score-price { color: var(--price); }
+
+.lsr-note {
+  font-size: 10px;
+  color: var(--ink3);
+  line-height: 1.4;
+  max-width: 140px;
+  text-align: right;
+}
+
+/* ── MERGE ARROWS ── */
+.merge-row {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0;
+  height: 32px;
+}
+
+.merge-col {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.merge-col::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 0.5px;
+  background: var(--line);
+}
+
+.merge-col::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid var(--ink3);
+}
+
+/* ── AND GATE ── */
+.and-gate {
+  background: var(--bg2);
+  border: 0.5px solid var(--line);
+  border-top: 2px solid var(--ink3);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  position: relative;
+}
+
+.and-gate::before {
+  content: '';
+  position: absolute;
+  left: calc(100%/6);
+  right: calc(100%/6);
+  top: -12px;
+  height: 0.5px;
+  background: var(--line);
+}
+
+.gate-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gate-label {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.gate-val {
+  font-family: var(--ff-mono);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.gate-separator {
+  font-family: var(--ff-mono);
+  font-size: 18px;
+  color: var(--ink3);
+  font-weight: 300;
+}
+
+.gate-label-center {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--bg);
+  padding: 0 8px;
+}
+
+/* ── VERDICT ── */
+.verdict-row {
+  display: flex;
+  gap: 2px;
+  margin-top: 0;
+}
+
+.verdict-card {
+  flex: 1;
+  padding: 18px 20px;
+  border-top: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vc-commit { background: rgba(111,212,154,0.08); border-color: var(--commit); }
+.vc-hold   { background: rgba(139,190,240,0.08); border-color: #8bbef0; }
+.vc-consult{ background: rgba(197,160,240,0.08); border-color: var(--consult); }
+.vc-wait   { background: rgba(240,236,228,0.04); border-color: var(--ink3); }
+.vc-toxic  { background: rgba(240,128,128,0.08); border-color: var(--toxic); }
+
+.verdict-state {
+  font-family: var(--ff-display);
+  font-weight: 400;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.vs-commit  { color: var(--commit); }
+.vs-hold    { color: #8bbef0; }
+.vs-consult { color: var(--consult); }
+.vs-wait    { color: var(--ink3); }
+.vs-toxic   { color: var(--toxic); }
+
+.verdict-condition {
+  font-size: 10.5px;
+  color: var(--ink3);
+  line-height: 1.5;
+  max-width: 140px;
+  text-align: right;
+}
+
+/* ── FOOTNOTE ── */
+.footnote {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 0.5px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+}
+
+.fn-col {}
+
+.fn-head {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+
+.fn-body {
+  font-size: 11px;
+  color: var(--ink3);
+  line-height: 1.65;
+}
+
+.fn-body strong { color: var(--ink2); font-weight: 400; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="doc-header">
+  <div>
+    <div class="brand">
+      <svg width="12" height="20" viewBox="0 0 12 20" fill="none">
+        <line x1="6" y1="0" x2="6" y2="13" stroke="currentColor" stroke-width="1"/>
+        <circle cx="6" cy="17" r="4" fill="currentColor"/>
+      </svg>
+      Plumb
+    </div>
+  </div>
+  <div class="doc-meta">
+    Data Pipeline Architecture · v3<br>
+    Three-Layer Scoring System<br>
+    AC Ads · 2026
+  </div>
+</div>
+
+<div class="doc-title">Scoring Input Architecture</div>
+<div class="doc-sub">How brief fields become layer scores · Data sources · Automation classification</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--auto)"></div>Auto-scored</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--semi)"></div>Semi-auto (model + review)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--human)"></div>Human gate required</div>
+  <div class="legend-item" style="margin-left:12px; padding-left:12px; border-left:0.5px solid var(--line)">
+    <span style="font-family:var(--ff-mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink3)">Src tag = data source</span>
+  </div>
+</div>
+
+<!-- ══ STAGE 1: BRIEF INPUT ══ -->
+<div style="font-family:var(--ff-mono); font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink3); margin-bottom:8px;">Stage 1 · Brief Input</div>
+<div class="brief-block">
+  <div class="block-eyebrow">Eight fields · Buyer enters · Drives eleven of fifteen auto-scores</div>
+  <div class="brief-fields">
+    <div class="brief-field">
+      <div class="bf-num">01</div>
+      <div class="bf-label">Brand / Advertiser</div>
+      <div class="bf-desc">Feeds brand history lookup, BAV affinity, earned placement check</div>
+    </div>
+    <div class="brief-field">
+      <div class="bf-num">02</div>
+      <div class="bf-label">Category</div>
+      <div class="bf-desc">Sets CPM benchmark index, category capital flow, cultural truth baseline</div>
+    </div>
+    <div class="brief-field">
+      <div class="bf-num">03</div>
+      <div class="bf-label">Placement Selection</div>
+      <div class="bf-desc">Selects from placement DB → auto-populates Geopath dwell, format spec, zone audience cuts</div>
+    </div>
+    <div class="brief-field">
+      <div class="bf-num">04</div>
+      <div class="bf-label">Creative Concept</div>
+      <div class="bf-desc">Text field → feeds Claude API for context fit, dignity, moment respect scoring</div>
+    </div>
+    <div class="brief-field" style="border-top:0.5px solid var(--line2)">
+      <div class="bf-num">05</div>
+      <div class="bf-label">Target Audience</div>
+      <div class="bf-desc">Definition matched against MRI-Simmons / Scarborough placement composition</div>
+    </div>
+    <div class="brief-field" style="border-top:0.5px solid var(--line2)">
+      <div class="bf-num">06</div>
+      <div class="bf-label">Budget + Flight Window</div>
+      <div class="bf-desc">Drives budget fit, cost per KPI, scale threshold, payback window scoring</div>
+    </div>
+    <div class="brief-field" style="border-top:0.5px solid var(--line2)">
+      <div class="bf-num">07</div>
+      <div class="bf-label">Named KPIs + Targets</div>
+      <div class="bf-desc">Declared at intake. Anchors cost-per-KPI arithmetic. Resurfaces at flight close for falsification</div>
+    </div>
+    <div class="brief-field" style="border-top:0.5px solid var(--line2); border-right:none;">
+      <div class="bf-num">08</div>
+      <div class="bf-label">Measurement Instrument</div>
+      <div class="bf-desc">None / QR+promo / lift study / digital pairing / closed-loop → directly sets attribution clarity floor</div>
+    </div>
+  </div>
+</div>
+
+<!-- ARROW DOWN -->
+<div class="flow-arrow"><div class="flow-arrow-head"></div></div>
+
+<!-- ROUTER -->
+<div class="router-block">
+  <div class="router-dot"></div>
+  <div class="router-label">Data Routing Engine · Brief fields mapped to layer metrics · External DB calls initiated</div>
+  <div class="router-dot"></div>
+</div>
+
+<!-- SMALL ARROW -->
+<div class="flow-arrow" style="height:24px;"><div class="flow-arrow-head"></div></div>
+
+<!-- STAGE LABEL -->
+<div style="font-family:var(--ff-mono); font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink3); margin-bottom:8px;">Stage 2 · Layer Scoring</div>
+
+<!-- ══ THREE LAYERS ══ -->
+<div class="split-row">
+
+  <!-- OPT -->
+  <div class="layer-col">
+    <div class="layer-header lh-opt">
+      <div>
+        <div class="layer-name ln-opt">Optimization</div>
+        <div style="font-size:10px; color:var(--ink3); margin-top:2px; font-family:var(--ff-mono); letter-spacing:0.06em;">Distribution math</div>
+      </div>
+      <div class="layer-mode">Largely<br>automatable</div>
+    </div>
+
+    <div class="metric-block">
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">CPM Efficiency</div>
+          <div class="mr-sources">
+            <span class="src-tag">Geopath</span>
+            <span class="src-tag">Platform rate cards</span>
+            <span class="src-tag">Category CPM index</span>
+          </div>
+          <div class="mr-desc">Proposed CPM ÷ market benchmark. Ratio scores itself once placement is selected.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Reach Quality</div>
+          <div class="mr-sources">
+            <span class="src-tag">MRI-Simmons</span>
+            <span class="src-tag">Scarborough</span>
+            <span class="src-tag">Geopath audience</span>
+          </div>
+          <div class="mr-desc">Target audience definition (Brief 05) scored against placement's known composition.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Frequency Fit</div>
+          <div class="mr-sources">
+            <span class="src-tag">Geopath dwell</span>
+            <span class="src-tag">Format spec sheet</span>
+          </div>
+          <div class="mr-desc">Flight duration × inventory cadence × avg dwell = modeled frequency. Auto once placement selected.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Targeting Precision</div>
+          <div class="mr-sources">
+            <span class="src-tag">CCO zone audience cuts</span>
+            <span class="src-tag">Platform targeting data</span>
+          </div>
+          <div class="mr-desc">Zone-level audience density scored against audience brief. Channel-adaptive.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Attribution Clarity</div>
+          <div class="mr-sources">
+            <span class="src-tag">Brief 08 · Measurement</span>
+            <span class="src-tag">StreetMetrics</span>
+            <span class="src-tag">AdMobilize</span>
+          </div>
+          <div class="mr-desc">Floor set by measurement instrument field. No instrument → scores low. Closed-loop → scores high. |ψ|² channel prior feeds default.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-semi">Semi</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="layer-score-row">
+      <div>
+        <div class="lsr-label">Optimization Score</div>
+      </div>
+      <div style="display:flex; align-items:baseline; gap:6px;">
+        <div class="lsr-score score-opt" id="opt-s">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH -->
+  <div class="layer-col">
+    <div class="layer-header lh-auth">
+      <div>
+        <div class="layer-name ln-auth">Authenticity</div>
+        <div style="font-size:10px; color:var(--ink3); margin-top:2px; font-family:var(--ff-mono); letter-spacing:0.06em;">Standing in the moment</div>
+      </div>
+      <div class="layer-mode">Semi-auto<br>2 human gates</div>
+    </div>
+
+    <div class="metric-block">
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Context Fit</div>
+          <div class="mr-sources">
+            <span class="src-tag">Claude API</span>
+            <span class="src-tag">Brief 04 · Creative</span>
+            <span class="src-tag">Placement DB</span>
+          </div>
+          <div class="mr-desc">Semantic match: creative concept vs. placement environment. Returns 0–100 + one-line rationale. No human required.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Audience Dignity</div>
+          <div class="mr-sources">
+            <span class="src-tag">Claude API</span>
+            <span class="src-tag">Brand voice rubric</span>
+          </div>
+          <div class="mr-desc">Creative copy scanned for manipulation patterns, dignity signals, brand voice consistency. Structured rubric. Auto-scored.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row" style="background:rgba(197,160,240,0.04); border-left:2px solid var(--human);">
+        <div class="mr-left">
+          <div class="mr-name">Cultural Truth <span style="font-size:9px; color:var(--human); font-family:var(--ff-mono); letter-spacing:0.08em; margin-left:4px;">GATE 1</span></div>
+          <div class="mr-sources">
+            <span class="src-tag">Brandwatch</span>
+            <span class="src-tag">Sprinklr</span>
+            <span class="src-tag">BAV trend line</span>
+          </div>
+          <div class="mr-desc">Data arrives automatically. Judgment requires a human. This gate forces CONSULT when soft — by design. Cannot and should not be fully automated.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-human">Human gate</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Earned Placement</div>
+          <div class="mr-sources">
+            <span class="src-tag">CCO placement history</span>
+            <span class="src-tag">BAV brand affinity</span>
+          </div>
+          <div class="mr-desc">Has this brand or category run in this environment? Affinity match to placement audience. Largely auto once DBs connected.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Moment Respect</div>
+          <div class="mr-sources">
+            <span class="src-tag">Placement DB · env type</span>
+            <span class="src-tag">Claude API</span>
+          </div>
+          <div class="mr-desc">Environment type auto from placement DB. Claude API scores creative emotional register against that environment. Buyer reviews output.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-semi">Semi</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="layer-score-row">
+      <div>
+        <div class="lsr-label">Authenticity Score</div>
+      </div>
+      <div class="lsr-score score-auth">—</div>
+    </div>
+  </div>
+
+  <!-- PRICE -->
+  <div class="layer-col">
+    <div class="layer-header lh-price">
+      <div>
+        <div class="layer-name ln-price">Pricing</div>
+        <div style="font-size:10px; color:var(--ink3); margin-top:2px; font-family:var(--ff-mono); letter-spacing:0.06em;">Capital math</div>
+      </div>
+      <div class="layer-mode">Fully auto<br>brief-complete</div>
+    </div>
+
+    <div class="metric-block">
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Budget Fit</div>
+          <div class="mr-sources">
+            <span class="src-tag">Category benchmark data</span>
+            <span class="src-tag">Brief 06 · Budget</span>
+          </div>
+          <div class="mr-desc">Proposed spend vs. category benchmark for this market and brand stage. Input the number; system benchmarks it.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Cost per KPI</div>
+          <div class="mr-sources">
+            <span class="src-tag">Brief 07 · KPI targets</span>
+            <span class="src-tag">Brief 06 · Budget</span>
+          </div>
+          <div class="mr-desc">Budget ÷ named KPI target. Pure arithmetic. Completely auto once Brief 06 and 07 are filled.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Scale Threshold</div>
+          <div class="mr-sources">
+            <span class="src-tag">Market impact floor model</span>
+            <span class="src-tag">Diminishing return ceiling</span>
+          </div>
+          <div class="mr-desc">Minimum spend to move the needle in this market for this target. Below floor → scores low. Above ceiling → also scores down.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Payback Window</div>
+          <div class="mr-sources">
+            <span class="src-tag">Brief 06 · Flight window</span>
+            <span class="src-tag">Brand planning cycle</span>
+          </div>
+          <div class="mr-desc">Flight duration scored against the brand's planning cycle. Auto from brief fields.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <div class="mr-left">
+          <div class="mr-name">Reversibility Cost</div>
+          <div class="mr-sources">
+            <span class="src-tag">IO contract terms</span>
+            <span class="src-tag">Brief 06 · Budget</span>
+          </div>
+          <div class="mr-desc">What % of committed spend is unrecoverable if the buy is killed mid-flight? Input from IO terms. The one-way door measured in dollars.</div>
+        </div>
+        <div class="mr-right">
+          <span class="mode-badge mb-auto">Auto</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="layer-score-row">
+      <div>
+        <div class="lsr-label">Pricing Score · FAIR / STRETCHED / WRONG</div>
+      </div>
+      <div class="lsr-score score-price">—</div>
+    </div>
+  </div>
+
+</div><!-- end split-row -->
+
+<!-- MERGE ARROWS -->
+<div class="merge-row">
+  <div class="merge-col"></div>
+  <div class="merge-col"></div>
+  <div class="merge-col"></div>
+</div>
+
+<!-- AND GATE -->
+<div style="font-family:var(--ff-mono); font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink3); margin-bottom:8px; margin-top:0;">Stage 3 · Verdict</div>
+
+<div class="and-gate">
+  <div class="gate-input">
+    <div class="gate-label">Optimization</div>
+    <div class="gate-val" style="color:var(--teal)">Opt</div>
+  </div>
+  <div class="gate-separator">×</div>
+  <div class="gate-input">
+    <div class="gate-label">Authenticity</div>
+    <div class="gate-val" style="color:var(--gold)">Auth</div>
+  </div>
+  <div class="gate-separator">→</div>
+  <div class="gate-input">
+    <div class="gate-label">NERVA State</div>
+    <div class="gate-val" style="color:var(--ink2)">State</div>
+  </div>
+  <div class="gate-separator">+</div>
+  <div class="gate-input">
+    <div class="gate-label">Pricing</div>
+    <div class="gate-val" style="color:var(--price)">Fair/Stretched/Wrong</div>
+  </div>
+  <div class="gate-separator">=</div>
+  <div class="gate-input">
+    <div class="gate-label">Action</div>
+    <div class="gate-val" style="color:var(--ink)">Action</div>
+  </div>
+</div>
+
+<!-- VERDICT STATES -->
+<div class="verdict-row">
+  <div class="verdict-card vc-commit">
+    <div class="verdict-state vs-commit">Commit</div>
+    <div class="verdict-condition">Opt ≥65 · Auth ≥65<br>Pricing: Fair or Stretched+rationale</div>
+  </div>
+  <div class="verdict-card vc-consult">
+    <div class="verdict-state vs-consult">Consult</div>
+    <div class="verdict-condition">Auth ≥65 · Opt &lt;65<br>Or Cultural Truth gate triggered</div>
+  </div>
+  <div class="verdict-card vc-hold">
+    <div class="verdict-state vs-hold">Hold</div>
+    <div class="verdict-condition">One layer soft<br>Brief gap or data missing</div>
+  </div>
+  <div class="verdict-card vc-wait">
+    <div class="verdict-state vs-wait">Wait</div>
+    <div class="verdict-condition">Pricing Wrong<br>Or both layers &lt;40</div>
+  </div>
+  <div class="verdict-card vc-toxic">
+    <div class="verdict-state vs-toxic">Toxic</div>
+    <div class="verdict-condition">Opt ≥65 · Auth &lt;40<br>High optimization, low authenticity</div>
+  </div>
+</div>
+
+<!-- FOOTNOTES -->
+<div class="footnote">
+  <div class="fn-col">
+    <div class="fn-head">Automation Summary</div>
+    <div class="fn-body">
+      <strong>11 of 15 metrics</strong> auto-populate once the eight brief fields are complete. The four remaining gates — Cultural Truth (human), Moment Respect (buyer review), Attribution Clarity (measurement instrument field), and the Consult escalation override — are structurally human by design. That is the product's defensibility, not its limitation.
+    </div>
+  </div>
+  <div class="fn-col">
+    <div class="fn-head">The Attribution Bridge</div>
+    <div class="fn-body">
+      Brief field 08 (Measurement Instrument) directly controls the Attribution Clarity floor. <strong>No instrument → default 0.61 (|ψ|² prior).</strong> Add a QR+promo code or digital pairing → floor moves to the 0.72–0.78 band. Full closed-loop lift study → 0.84+. The measurement plan is part of the buy, not an afterthought.
+    </div>
+  </div>
+  <div class="fn-col">
+    <div class="fn-head">Falsification Loop</div>
+    <div class="fn-body">
+      The KPI targets declared in Brief field 07 are locked at the time of the verdict and surfaced again at flight close. Every scored outcome is logged against the verdict that produced it. The system accumulates a calibration record: <strong>which verdicts predict hits, which buyers' overrides beat the model, which channels close the signal gap.</strong>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
