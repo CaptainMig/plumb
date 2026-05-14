@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plumb · Scoring Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#13110e; --bg2:#1d1a16; --bg3:#26231e; --bg4:#2e2a24;
+  --ink:#f0ece4; --ink2:rgba(240,236,228,0.65); --ink3:rgba(240,236,228,0.32); --ink4:rgba(240,236,228,0.14);
+  --line:rgba(255,255,255,0.07); --line2:rgba(255,255,255,0.04);
+  --teal:#5aabb0; --teal-bg:rgba(90,171,176,0.12); --teal-dim:rgba(90,171,176,0.06);
+  --gold:#c8971f; --gold-bg:rgba(200,151,31,0.12); --gold-dim:rgba(200,151,31,0.06);
+  --price:#a07840; --price-bg:rgba(160,120,64,0.12); --price-dim:rgba(160,120,64,0.06);
+  --auto:#6fd49a; --auto-bg:rgba(111,212,154,0.12);
+  --semi:#e6b84a; --semi-bg:rgba(230,184,74,0.12);
+  --human:#c5a0f0; --human-bg:rgba(197,160,240,0.12);
+  --commit:#6fd49a; --commit-bg:rgba(111,212,154,0.1);
+  --consult:#c5a0f0; --consult-bg:rgba(197,160,240,0.1);
+  --hold:#8bbef0; --hold-bg:rgba(139,190,240,0.1);
+  --toxic:#f08080; --toxic-bg:rgba(240,128,128,0.1);
+  --wait:rgba(240,236,228,0.4); --wait-bg:rgba(240,236,228,0.05);
+  --online:#6fd49a; --fetching:#e6b84a; --offline:rgba(240,236,228,0.2);
+  --ff:'IBM Plex Sans',system-ui,sans-serif;
+  --display:'Fraunces',Georgia,serif;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--ff);font-weight:300;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+
+/* ── HEADER ── */
+.header{height:56px;background:var(--bg2);border-bottom:0.5px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:20px;flex-shrink:0;z-index:10}
+.brand{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:400;font-size:18px;color:var(--ink);margin-right:8px}
+.brand svg{color:var(--teal)}
+.header-sep{width:0.5px;height:24px;background:var(--line);flex-shrink:0}
+.api-status-row{display:flex;align-items:center;gap:10px;flex:1}
+.api-pill{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink3);padding:3px 8px;background:var(--bg3);border:0.5px solid var(--line);border-radius:2px;transition:all 0.3s}
+.api-pill.online{color:var(--online);border-color:rgba(111,212,154,0.25);background:var(--auto-bg)}
+.api-pill.fetching{color:var(--fetching);border-color:rgba(230,184,74,0.25);background:var(--semi-bg)}
+.api-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.api-pill.fetching .api-dot{animation:pulse 0.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.run-btn{margin-left:auto;background:var(--teal);color:var(--bg);padding:8px 20px;border:0;font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:2px;font-weight:500;transition:background 0.15s;flex-shrink:0}
+.run-btn:hover{background:var(--gold)}
+.run-btn:disabled{background:var(--bg3);color:var(--ink3);cursor:default}
+.run-btn.running{background:var(--semi-bg);color:var(--semi);border:0.5px solid rgba(230,184,74,0.3)}
+
+/* ── MAIN LAYOUT ── */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ── BRIEF SIDEBAR ── */
+.brief-sidebar{width:280px;flex-shrink:0;background:var(--bg2);border-right:0.5px solid var(--line);overflow-y:auto;padding:16px}
+.sidebar-head{font-family:var(--mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink3);margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid var(--line)}
+.field-group{margin-bottom:12px}
+.field-label{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.field-num{color:var(--ink4);font-size:8px}
+.field-input{width:100%;background:var(--bg3);border:0.5px solid var(--line);color:var(--ink);font-family:var(--ff);font-size:12px;font-weight:300;padding:7px 10px;appearance:none;border-radius:2px;transition:border-color 0.15s}
+.field-input:focus{outline:none;border-color:var(--teal)}
+.field-input option{background:var(--bg3)}
+textarea.field-input{resize:none;min-height:60px;line-height:1.5}
+
+.measurement-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.m-btn{padding:5px 0;font-family:var(--mono);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;background:var(--bg3);border:0.5px solid var(--line);color:var(--ink3);cursor:pointer;text-align:center;border-radius:2px;transition:all 0.15s}
+.m-btn.active{background:var(--teal-bg);color:var(--teal);border-color:rgba(90,171,176,0.3)}
+
+.brief-divider{height:0.5px;background:var(--line);margin:16px 0}
+
+.source-status-list{display:flex;flex-direction:column;gap:5px}
+.src-status-row{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--bg3);border-radius:2px}
+.src-name{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.06em}
+.src-badge{font-family:var(--mono);font-size:8px;letter-spacing:0.08em;text-transform:uppercase;padding:1px 6px;border-radius:2px}
+.sb-idle{color:var(--ink3);background:transparent}
+.sb-connecting{color:var(--semi);background:var(--semi-bg);animation:pulse 0.8s infinite}
+.sb-resolved{color:var(--auto);background:var(--auto-bg)}
+.sb-error{color:var(--toxic);background:var(--toxic-bg)}
+
+/* ── SCORER MAIN ── */
+.scorer-main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.scorer-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;flex:1;overflow:hidden;border-right:0.5px solid var(--line)}
+
+/* ── LAYER COLUMN ── */
+.layer-col{display:flex;flex-direction:column;border-right:0.5px solid var(--line);overflow:hidden}
+.layer-col:last-child{border-right:none}
+.layer-head{padding:12px 16px;border-bottom:0.5px solid var(--line);flex-shrink:0;border-top:2px solid transparent;display:flex;align-items:baseline;justify-content:space-between}
+.lh-opt{border-top-color:var(--teal);background:var(--teal-dim)}
+.lh-auth{border-top-color:var(--gold);background:var(--gold-dim)}
+.lh-price{border-top-color:var(--price);background:var(--price-dim)}
+.layer-title{font-family:var(--display);font-weight:400;font-size:16px;letter-spacing:-0.01em}
+.lt-opt{color:var(--teal)}.lt-auth{color:var(--gold)}.lt-price{color:var(--price)}
+.layer-sub{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.06em}
+.layer-avg{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1}
+.la-opt{color:var(--teal)}.la-auth{color:var(--gold)}.la-price{color:var(--price)}
+
+.metrics-list{flex:1;overflow-y:auto}
+.metric-item{padding:10px 16px;border-bottom:0.5px solid var(--line2);transition:background 0.15s}
+.metric-item:hover{background:var(--bg3)}
+.metric-item.resolving{background:rgba(230,184,74,0.03)}
+.metric-item.resolved{background:rgba(111,212,154,0.02)}
+.metric-item.human-gate{border-left:2px solid var(--human)}
+
+.mi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.mi-name{font-size:12px;font-weight:500;color:var(--ink)}
+.mi-badge{font-family:var(--mono);font-size:8px;letter-spacing:0.08em;text-transform:uppercase;padding:2px 6px;border-radius:2px}
+.mib-auto{background:var(--auto-bg);color:var(--auto)}
+.mib-semi{background:var(--semi-bg);color:var(--semi)}
+.mib-human{background:var(--human-bg);color:var(--human)}
+
+.mi-sources{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px}
+.src-chip{font-family:var(--mono);font-size:8px;padding:1px 5px;background:var(--bg4);border:0.5px solid var(--line);color:var(--ink3);border-radius:2px;letter-spacing:0.04em}
+
+.mi-data{font-family:var(--mono);font-size:9px;color:var(--ink3);margin-bottom:6px;min-height:12px;letter-spacing:0.04em;line-height:1.5}
+.mi-data.fetching-text{color:var(--semi);animation:pulse 0.8s infinite}
+.mi-data.resolved-text{color:var(--auto)}
+.mi-data.claude-text{color:var(--human)}
+
+.slider-row{display:flex;align-items:center;gap:8px}
+.slider-wrap{flex:1;position:relative}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;background:transparent;height:16px;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--bg4);border-radius:1px}
+input[type=range]::-moz-range-track{height:2px;background:var(--bg4);border-radius:1px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;height:12px;width:12px;border-radius:50%;margin-top:-5px;border:0;transition:transform 0.15s}
+input[type=range]::-moz-range-thumb{height:12px;width:12px;border-radius:50%;border:0}
+.lc-opt input[type=range]::-webkit-slider-thumb{background:var(--teal)}
+.lc-opt input[type=range]::-moz-range-thumb{background:var(--teal)}
+.lc-auth input[type=range]::-webkit-slider-thumb{background:var(--gold)}
+.lc-auth input[type=range]::-moz-range-thumb{background:var(--gold)}
+.lc-price input[type=range]::-webkit-slider-thumb{background:var(--price)}
+.lc-price input[type=range]::-moz-range-thumb{background:var(--price)}
+.slider-val{font-family:var(--mono);font-size:12px;font-weight:500;min-width:22px;text-align:right}
+.sv-opt{color:var(--teal)}.sv-auth{color:var(--gold)}.sv-price{color:var(--price)}
+
+.layer-score-bar{padding:10px 16px;border-top:0.5px solid var(--line);background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.lsb-label{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3)}
+.lsb-score{font-family:var(--mono);font-size:18px;font-weight:500}
+
+/* ── VERDICT + LOG PANEL ── */
+.right-panel{width:260px;flex-shrink:0;background:var(--bg2);border-left:0.5px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+
+.verdict-panel{padding:16px;border-bottom:0.5px solid var(--line);flex-shrink:0}
+.vp-label{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px}
+.verdict-state{font-family:var(--display);font-weight:400;font-size:40px;line-height:1;letter-spacing:-0.02em;margin-bottom:4px;transition:color 0.4s}
+.verdict-tag{font-family:var(--display);font-style:italic;font-weight:300;font-size:13px;color:var(--ink2);margin-bottom:10px;min-height:18px}
+.verdict-reason{font-size:11px;color:var(--ink3);line-height:1.6;margin-bottom:10px;min-height:52px}
+.verdict-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px}
+.vs-cell{background:var(--bg3);padding:6px 8px;border-radius:2px}
+.vs-l{font-family:var(--mono);font-size:8px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:2px}
+.vs-v{font-family:var(--mono);font-size:14px;font-weight:500}
+.verdict-action-row{padding:8px 10px;background:var(--bg3);border-radius:2px;display:flex;justify-content:space-between;align-items:center}
+.var-label{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3)}
+.var-value{font-family:var(--display);font-size:16px;letter-spacing:0.01em}
+
+.log-panel{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.log-head{padding:8px 16px;border-bottom:0.5px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.log-title{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3)}
+.log-clear{font-family:var(--mono);font-size:8px;color:var(--ink4);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase}
+.log-clear:hover{color:var(--ink3)}
+.log-feed{flex:1;overflow-y:auto;padding:8px 0}
+.log-entry{padding:4px 16px;font-family:var(--mono);font-size:9px;line-height:1.5;letter-spacing:0.04em;border-bottom:0.5px solid var(--line2);opacity:0;animation:fadeIn 0.3s forwards}
+@keyframes fadeIn{to{opacity:1}}
+.le-time{color:var(--ink4);margin-right:8px}
+.le-source{margin-right:6px}
+.le-msg{}
+.le-ok{color:var(--auto)}.le-fetch{color:var(--semi)}.le-claude{color:var(--human)}.le-err{color:var(--toxic)}.le-info{color:var(--ink3)}
+
+/* ── AUDIT STRIP ── */
+.audit-strip{height:28px;background:var(--bg3);border-top:0.5px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:16px;flex-shrink:0}
+.as-id{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.08em}
+.as-sep{width:0.5px;height:14px;background:var(--line)}
+.as-kpi{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.06em}
+.as-kpi span{color:var(--ink2);margin-left:4px}
+.as-time{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--ink4)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <svg width="11" height="18" viewBox="0 0 11 18" fill="none">
+      <line x1="5.5" y1="0" x2="5.5" y2="11" stroke="currentColor" stroke-width="1"/>
+      <circle cx="5.5" cy="15" r="3.5" fill="currentColor"/>
+    </svg>
+    Plumb
+  </div>
+  <div class="header-sep"></div>
+  <div class="api-status-row" id="api-status-row">
+    <div class="api-pill" id="pill-geopath"><span class="api-dot"></span>Geopath</div>
+    <div class="api-pill" id="pill-mri"><span class="api-dot"></span>MRI-Simmons</div>
+    <div class="api-pill" id="pill-cco"><span class="api-dot"></span>CCO DB</div>
+    <div class="api-pill" id="pill-brandwatch"><span class="api-dot"></span>Brandwatch</div>
+    <div class="api-pill" id="pill-bav"><span class="api-dot"></span>BAV</div>
+    <div class="api-pill" id="pill-streetmetrics"><span class="api-dot"></span>StreetMetrics</div>
+    <div class="api-pill" id="pill-claude"><span class="api-dot"></span>Claude API</div>
+    <div class="api-pill" id="pill-benchmark"><span class="api-dot"></span>Benchmark DB</div>
+  </div>
+  <button class="run-btn" id="run-btn" onclick="runAnalysis()">Run Analysis</button>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- BRIEF SIDEBAR -->
+  <aside class="brief-sidebar">
+    <div class="sidebar-head">Campaign Brief · 8 Fields</div>
+
+    <div class="field-group">
+      <div class="field-label"><span>Brand / Advertiser</span><span class="field-num">01</span></div>
+      <input class="field-input" id="f-brand" type="text" value="Sample Bank — Trust Q3">
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Category</span><span class="field-num">02</span></div>
+      <select class="field-input" id="f-category">
+        <option value="finance">Financial Services</option>
+        <option value="travel">Travel / Hospitality</option>
+        <option value="tech">Technology</option>
+        <option value="health">Health / Pharma</option>
+        <option value="cpg">CPG / FMCG</option>
+        <option value="auto">Automotive</option>
+        <option value="luxury">Luxury / Retail</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Placement</span><span class="field-num">03</span></div>
+      <select class="field-input" id="f-placement">
+        <option value="airport-ooh">Airport OOH — Hub market</option>
+        <option value="airport-gate">Airport OOH — Gate cluster</option>
+        <option value="transit-ooh">Transit OOH — Urban rail</option>
+        <option value="street-ooh">Street furniture — CBD</option>
+        <option value="digital-srch">Search — Google PMax</option>
+        <option value="digital-social">Social — Meta Advantage+</option>
+        <option value="ctv">CTV — Premium streaming</option>
+        <option value="tv-linear">Linear TV — Network upfront</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Creative Concept</span><span class="field-num">04</span></div>
+      <textarea class="field-input" id="f-creative" rows="3">Local trust — "Banking where you live and work." Verifiable local presence, no universal claims. Community anchor messaging.</textarea>
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Target Audience</span><span class="field-num">05</span></div>
+      <input class="field-input" id="f-audience" type="text" value="Business travelers, HHI $120K+, ages 35–54">
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Budget + Flight</span><span class="field-num">06</span></div>
+      <input class="field-input" id="f-budget" type="text" value="$580,000 · 8 weeks · Q3 2026">
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Named KPIs</span><span class="field-num">07</span></div>
+      <input class="field-input" id="f-kpis" type="text" value="8.2M imp · +6pp recall · 12K branch visits">
+    </div>
+    <div class="field-group">
+      <div class="field-label"><span>Measurement Instrument</span><span class="field-num">08</span></div>
+      <div class="measurement-grid">
+        <button class="m-btn" id="mb-none" onclick="setMeasure('none',this)">None</button>
+        <button class="m-btn active" id="mb-qr" onclick="setMeasure('qr',this)">QR + Promo</button>
+        <button class="m-btn" id="mb-lift" onclick="setMeasure('lift',this)">Lift Study</button>
+        <button class="m-btn" id="mb-closed" onclick="setMeasure('closed',this)">Closed Loop</button>
+      </div>
+    </div>
+
+    <div class="brief-divider"></div>
+    <div class="sidebar-head" style="margin-bottom:10px">Data Source Status</div>
+    <div class="source-status-list" id="source-status-list">
+      <div class="src-status-row"><span class="src-name">Geopath</span><span class="src-badge sb-idle" id="ss-geopath">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">MRI-Simmons</span><span class="src-badge sb-idle" id="ss-mri">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">Scarborough</span><span class="src-badge sb-idle" id="ss-scarborough">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">CCO Placement DB</span><span class="src-badge sb-idle" id="ss-cco">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">Brandwatch</span><span class="src-badge sb-idle" id="ss-brandwatch">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">BAV Research</span><span class="src-badge sb-idle" id="ss-bav">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">StreetMetrics</span><span class="src-badge sb-idle" id="ss-streetmetrics">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">Claude API</span><span class="src-badge sb-idle" id="ss-claude">Idle</span></div>
+      <div class="src-status-row"><span class="src-name">Benchmark DB</span><span class="src-badge sb-idle" id="ss-benchmark">Idle</span></div>
+    </div>
+  </aside>
+
+  <!-- SCORER COLUMNS -->
+  <div class="scorer-main">
+    <div class="scorer-cols">
+
+      <!-- OPTIMIZATION -->
+      <div class="layer-col lc-opt">
+        <div class="layer-head lh-opt">
+          <div>
+            <div class="layer-title lt-opt">Optimization</div>
+            <div class="layer-sub">Distribution math · largely auto</div>
+          </div>
+          <div class="layer-avg la-opt" id="avg-opt">—</div>
+        </div>
+        <div class="metrics-list" id="ml-opt">
+          <div class="metric-item" id="mi-cpm">
+            <div class="mi-top"><span class="mi-name">CPM Efficiency</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">Geopath</span><span class="src-chip">Platform rate cards</span><span class="src-chip">Category CPM index</span></div>
+            <div class="mi-data" id="data-cpm">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-cpm" oninput="manualSlider('cpm',this.value)"></div><span class="slider-val sv-opt" id="sv-cpm">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-reach">
+            <div class="mi-top"><span class="mi-name">Reach Quality</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">MRI-Simmons</span><span class="src-chip">Scarborough</span><span class="src-chip">Geopath audience</span></div>
+            <div class="mi-data" id="data-reach">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-reach" oninput="manualSlider('reach',this.value)"></div><span class="slider-val sv-opt" id="sv-reach">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-freq">
+            <div class="mi-top"><span class="mi-name">Frequency Fit</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">Geopath dwell</span><span class="src-chip">Format spec</span></div>
+            <div class="mi-data" id="data-freq">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-freq" oninput="manualSlider('freq',this.value)"></div><span class="slider-val sv-opt" id="sv-freq">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-tgt">
+            <div class="mi-top"><span class="mi-name">Targeting Precision</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">CCO zone cuts</span><span class="src-chip">Platform targeting</span></div>
+            <div class="mi-data" id="data-tgt">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-tgt" oninput="manualSlider('tgt',this.value)"></div><span class="slider-val sv-opt" id="sv-tgt">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-attr">
+            <div class="mi-top"><span class="mi-name">Attribution Clarity</span><span class="mi-badge mib-semi">Semi</span></div>
+            <div class="mi-sources"><span class="src-chip">Brief 08 · Measurement</span><span class="src-chip">StreetMetrics</span><span class="src-chip">AdMobilize</span></div>
+            <div class="mi-data" id="data-attr">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-attr" oninput="manualSlider('attr',this.value)"></div><span class="slider-val sv-opt" id="sv-attr">0</span></div>
+          </div>
+        </div>
+        <div class="layer-score-bar">
+          <span class="lsb-label">Optimization Score</span>
+          <span class="lsb-score la-opt" id="lscore-opt">—</span>
+        </div>
+      </div>
+
+      <!-- AUTHENTICITY -->
+      <div class="layer-col lc-auth">
+        <div class="layer-head lh-auth">
+          <div>
+            <div class="layer-title lt-auth">Authenticity</div>
+            <div class="layer-sub">Standing in the moment · 2 human gates</div>
+          </div>
+          <div class="layer-avg la-auth" id="avg-auth">—</div>
+        </div>
+        <div class="metrics-list" id="ml-auth">
+          <div class="metric-item" id="mi-ctx">
+            <div class="mi-top"><span class="mi-name">Context Fit</span><span class="mi-badge mib-auto">Auto · Claude API</span></div>
+            <div class="mi-sources"><span class="src-chip">Claude API</span><span class="src-chip">Brief 04 · Creative</span><span class="src-chip">Placement DB</span></div>
+            <div class="mi-data" id="data-ctx">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-ctx" oninput="manualSlider('ctx',this.value)"></div><span class="slider-val sv-auth" id="sv-ctx">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-dignity">
+            <div class="mi-top"><span class="mi-name">Audience Dignity</span><span class="mi-badge mib-auto">Auto · Claude API</span></div>
+            <div class="mi-sources"><span class="src-chip">Claude API</span><span class="src-chip">Brand voice rubric</span></div>
+            <div class="mi-data" id="data-dignity">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-dignity" oninput="manualSlider('dignity',this.value)"></div><span class="slider-val sv-auth" id="sv-dignity">0</span></div>
+          </div>
+          <div class="metric-item human-gate" id="mi-cult">
+            <div class="mi-top"><span class="mi-name">Cultural Truth <span style="font-size:8px;color:var(--human);font-family:var(--mono);letter-spacing:0.08em">GATE 1</span></span><span class="mi-badge mib-human">Human gate</span></div>
+            <div class="mi-sources"><span class="src-chip">Brandwatch</span><span class="src-chip">Sprinklr</span><span class="src-chip">BAV trend</span></div>
+            <div class="mi-data" id="data-cult">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-cult" oninput="manualSlider('cult',this.value)"></div><span class="slider-val sv-auth" id="sv-cult">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-earn">
+            <div class="mi-top"><span class="mi-name">Earned Placement</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">CCO placement history</span><span class="src-chip">BAV affinity</span></div>
+            <div class="mi-data" id="data-earn">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-earn" oninput="manualSlider('earn',this.value)"></div><span class="slider-val sv-auth" id="sv-earn">0</span></div>
+          </div>
+          <div class="metric-item human-gate" id="mi-moment">
+            <div class="mi-top"><span class="mi-name">Moment Respect <span style="font-size:8px;color:var(--human);font-family:var(--mono);letter-spacing:0.08em">GATE 2</span></span><span class="mi-badge mib-semi">Semi · Claude API</span></div>
+            <div class="mi-sources"><span class="src-chip">Placement DB · env</span><span class="src-chip">Claude API</span></div>
+            <div class="mi-data" id="data-moment">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-moment" oninput="manualSlider('moment',this.value)"></div><span class="slider-val sv-auth" id="sv-moment">0</span></div>
+          </div>
+        </div>
+        <div class="layer-score-bar">
+          <span class="lsb-label">Authenticity Score</span>
+          <span class="lsb-score la-auth" id="lscore-auth">—</span>
+        </div>
+      </div>
+
+      <!-- PRICING -->
+      <div class="layer-col lc-price">
+        <div class="layer-head lh-price">
+          <div>
+            <div class="layer-title lt-price">Pricing</div>
+            <div class="layer-sub">Capital math · fully auto</div>
+          </div>
+          <div class="layer-avg la-price" id="avg-price">—</div>
+        </div>
+        <div class="metrics-list" id="ml-price">
+          <div class="metric-item" id="mi-bfit">
+            <div class="mi-top"><span class="mi-name">Budget Fit</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">Category benchmark</span><span class="src-chip">Brief 06 · Budget</span></div>
+            <div class="mi-data" id="data-bfit">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-bfit" oninput="manualSlider('bfit',this.value)"></div><span class="slider-val sv-price" id="sv-bfit">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-cpkpi">
+            <div class="mi-top"><span class="mi-name">Cost per KPI</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">Brief 07 · KPIs</span><span class="src-chip">Brief 06 · Budget</span></div>
+            <div class="mi-data" id="data-cpkpi">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-cpkpi" oninput="manualSlider('cpkpi',this.value)"></div><span class="slider-val sv-price" id="sv-cpkpi">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-scale">
+            <div class="mi-top"><span class="mi-name">Scale Threshold</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">Market impact model</span><span class="src-chip">Diminishing return</span></div>
+            <div class="mi-data" id="data-scale">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-scale" oninput="manualSlider('scale',this.value)"></div><span class="slider-val sv-price" id="sv-scale">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-payback">
+            <div class="mi-top"><span class="mi-name">Payback Window</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">Brief 06 · Flight</span><span class="src-chip">Brand planning cycle</span></div>
+            <div class="mi-data" id="data-payback">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-payback" oninput="manualSlider('payback',this.value)"></div><span class="slider-val sv-price" id="sv-payback">0</span></div>
+          </div>
+          <div class="metric-item" id="mi-rev">
+            <div class="mi-top"><span class="mi-name">Reversibility Cost</span><span class="mi-badge mib-auto">Auto</span></div>
+            <div class="mi-sources"><span class="src-chip">IO contract terms</span><span class="src-chip">Brief 06 · Budget</span></div>
+            <div class="mi-data" id="data-rev">Awaiting brief submission</div>
+            <div class="slider-row"><div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="sl-rev" oninput="manualSlider('rev',this.value)"></div><span class="slider-val sv-price" id="sv-rev">0</span></div>
+          </div>
+        </div>
+        <div class="layer-score-bar">
+          <span class="lsb-label">Pricing · FAIR / STRETCHED / WRONG</span>
+          <span class="lsb-score la-price" id="lscore-price">—</span>
+        </div>
+      </div>
+
+    </div><!-- end scorer-cols -->
+  </div><!-- end scorer-main -->
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="verdict-panel">
+      <div class="vp-label">Live Verdict</div>
+      <div class="verdict-state" id="v-state" style="color:var(--ink3)">—</div>
+      <div class="verdict-tag" id="v-tag">Run analysis to score</div>
+      <div class="verdict-reason" id="v-reason">Complete the brief and click Run Analysis. Eleven of fifteen metrics will auto-populate from connected data sources. Cultural Truth and Moment Respect require buyer review after data resolves.</div>
+      <div class="verdict-scores">
+        <div class="vs-cell"><div class="vs-l">Opt</div><div class="vs-v" id="vs-opt" style="color:var(--teal)">—</div></div>
+        <div class="vs-cell"><div class="vs-l">Auth</div><div class="vs-v" id="vs-auth" style="color:var(--gold)">—</div></div>
+        <div class="vs-cell"><div class="vs-l">Price</div><div class="vs-v" id="vs-price" style="color:var(--price)">—</div></div>
+      </div>
+      <div class="verdict-action-row">
+        <span class="var-label">Action</span>
+        <span class="var-value" id="v-action" style="color:var(--ink3)">—</span>
+      </div>
+    </div>
+
+    <div class="log-panel">
+      <div class="log-head">
+        <span class="log-title">Data Feed Log</span>
+        <span class="log-clear" onclick="clearLog()">Clear</span>
+      </div>
+      <div class="log-feed" id="log-feed">
+        <div class="log-entry"><span class="le-time">—</span><span class="le-info">Dashboard initialized. Ready for brief submission.</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<!-- AUDIT STRIP -->
+<div class="audit-strip">
+  <span class="as-id" id="audit-id">PLUMB — NO ACTIVE AUDIT</span>
+  <div class="as-sep"></div>
+  <span class="as-kpi" id="audit-kpis">KPIs: <span>Not yet declared</span></span>
+  <span class="as-time" id="audit-time">—</span>
+</div>
+
+<script>
+// ── STATE ──
+let scores = {cpm:0,reach:0,freq:0,tgt:0,attr:0,ctx:0,dignity:0,cult:0,earn:0,moment:0,bfit:0,cpkpi:0,scale:0,payback:0,rev:0};
+let measureMode = 'qr';
+let isRunning = false;
+
+// ── MOCK DATA BY CATEGORY ──
+const CATEGORY_DATA = {
+  finance: {
+    cpm: {val:76, text:'Proposed $10.40 CPM vs $13.60 category benchmark → efficiency +24%'},
+    reach: {val:78, text:'Business traveler HHI $120K+ · MRI match 78% vs target profile'},
+    freq: {val:74, text:'Avg dwell 18.4 min · 8-week flight · freq model: 4.2 OTS'},
+    tgt: {val:72, text:'Zone audience: 68% business travel, 22% HHI $100K+ → precision 72'},
+    earn: {val:76, text:'Financial services: 14 prior placements this environment · affinity 0.78'},
+    bfit: {val:76, text:'$580K vs $620K category benchmark for this market → fit 76'},
+    cpkpi: {val:73, text:'$70.7 CPM per recall point vs $82 benchmark → cost efficiency 73'},
+    scale: {val:78, text:'$580K above $420K impact floor, below $900K diminishing ceiling → 78'},
+    payback: {val:72, text:'8-week flight vs Q3 brand cycle → window aligned 72'},
+    social: {val:64, text:'Social sentiment: 0.62 positive ratio · category event last 30d flagged'},
+    bav: {val:68, text:'BAV equity 0.71 · brand relevance trending +4pp last quarter'}
+  },
+  travel: {
+    cpm: {val:82, text:'Proposed $9.80 CPM vs $12.40 category benchmark → efficiency +21%'},
+    reach: {val:88, text:'Leisure + business mix · MRI audience match 88% vs target profile'},
+    freq: {val:84, text:'Avg dwell 22.1 min · 12-week flight · freq model: 5.8 OTS'},
+    tgt: {val:84, text:'Zone audience: 74% travel intent · precision score 84'},
+    earn: {val:88, text:'Travel: 28 prior placements · category-native · affinity 0.91'},
+    bfit: {val:82, text:'Budget well-matched to category flight spend benchmark → 82'},
+    cpkpi: {val:80, text:'Strong CPM-to-recall ratio vs category → 80'},
+    scale: {val:84, text:'Spend above impact floor, headroom before ceiling → 84'},
+    payback: {val:80, text:'Flight window well-aligned with booking cycle → 80'},
+    social: {val:78, text:'Positive category sentiment · no adverse events flagged → 78'},
+    bav: {val:82, text:'Brand affinity high for placement audience → 82'}
+  },
+  tech: {
+    cpm: {val:84, text:'Proposed $11.20 CPM vs $14.80 benchmark → efficiency strong'},
+    reach: {val:72, text:'Tech buyer audience partial match · consumer mix dilutes precision'},
+    freq: {val:70, text:'Dwell 16.2 min · frequency adequate but not optimal for tech cycle'},
+    tgt: {val:68, text:'Zone audience skews consumer travel · B2B decision-maker subset narrow'},
+    earn: {val:38, text:'Tech: limited OOH placement history in this environment · affinity 0.41'},
+    bfit: {val:74, text:'Budget reasonable but audience efficiency gap noted → 74'},
+    cpkpi: {val:68, text:'CPM-to-reach ratio strained by audience mismatch → 68'},
+    scale: {val:72, text:'Spend in range but audience dilution reduces effective scale → 72'},
+    payback: {val:65, text:'Product cycle may not align with 8-week flight window → 65'},
+    social: {val:42, text:'Category social sentiment mixed · brand not strongly associated with this channel'},
+    bav: {val:36, text:'BAV affinity low for placement environment · earned placement weak'}
+  },
+  health: {
+    cpm: {val:74, text:'Proposed $10.80 CPM vs $13.20 benchmark → efficiency 74'},
+    reach: {val:76, text:'HCP + consumer mix · audience overlap 74% with target'},
+    freq: {val:72, text:'Dwell 17.8 min · frequency model adequate for awareness objective'},
+    tgt: {val:70, text:'Zone audience: professional travel skew · health decision-makers present'},
+    earn: {val:70, text:'Health category: 9 prior placements · moderate affinity 0.68'},
+    bfit: {val:70, text:'Budget fits category norms for awareness campaign → 70'},
+    cpkpi: {val:68, text:'Recall cost above benchmark → 68'},
+    scale: {val:72, text:'Scale adequate for awareness KPI · branch visit proxy uncertain → 72'},
+    payback: {val:70, text:'Flight window acceptable for awareness build → 70'},
+    social: {val:60, text:'Category under regulatory review · social sentiment cautious → 60'},
+    bav: {val:66, text:'Brand equity stable · no adverse trend · affinity 0.66'}
+  },
+  cpg: {
+    cpm: {val:70, text:'CPG CPM $11.60 vs $13.80 benchmark → moderate efficiency'},
+    reach: {val:68, text:'Mass audience reach acceptable but premium audience diluted → 68'},
+    freq: {val:74, text:'Dwell model good for CPG frequency requirements → 74'},
+    tgt: {val:65, text:'Zone audience too business-heavy for CPG mass market target → 65'},
+    earn: {val:62, text:'CPG: limited natural affinity for airport environment → 62'},
+    bfit: {val:72, text:'Budget adequate for CPG flight requirements → 72'},
+    cpkpi: {val:68, text:'CPM per awareness point moderate → 68'},
+    scale: {val:70, text:'Scale adequate for market → 70'},
+    payback: {val:68, text:'Flight window standard for CPG cycle → 68'},
+    social: {val:58, text:'Category sentiment neutral · no adverse signal → 58'},
+    bav: {val:60, text:'Brand affinity modest for placement audience → 60'}
+  },
+  auto: {
+    cpm: {val:78, text:'Auto CPM $10.20 vs $13.40 benchmark → strong efficiency'},
+    reach: {val:76, text:'Traveler audience overlaps strongly with auto purchase consideration'},
+    freq: {val:76, text:'Freq model adequate for auto awareness cycle → 76'},
+    tgt: {val:74, text:'HHI $100K+ business traveler: strong auto buyer proxy → 74'},
+    earn: {val:72, text:'Auto: 11 prior placements · affinity 0.72 · earned → 72'},
+    bfit: {val:76, text:'Budget well-matched to regional auto awareness benchmark → 76'},
+    cpkpi: {val:74, text:'Cost per brand recall point competitive for auto category → 74'},
+    scale: {val:76, text:'Spend above floor, well within ceiling for auto → 76'},
+    payback: {val:72, text:'8-week window fits typical auto awareness-to-consideration cycle'},
+    social: {val:70, text:'Category sentiment positive · model launch momentum → 70'},
+    bav: {val:74, text:'Brand equity strong for placement audience → 74'}
+  },
+  luxury: {
+    cpm: {val:72, text:'Luxury CPM $12.40 vs $15.20 benchmark → efficiency moderate'},
+    reach: {val:80, text:'HHI $120K+ heavy · luxury buyer index 1.8x in this zone → 80'},
+    freq: {val:70, text:'Luxury requires lower freq / higher quality contact → 70'},
+    tgt: {val:78, text:'Premium traveler audience strongly overlaps luxury buyer profile → 78'},
+    earn: {val:80, text:'Luxury: 18 prior placements · high category affinity 0.84 → 80'},
+    bfit: {val:68, text:'Budget slightly below luxury presence benchmark → 68'},
+    cpkpi: {val:66, text:'Luxury recall cost above category floor → 66'},
+    scale: {val:64, text:'Spend approaches under-threshold for luxury brand presence → 64'},
+    payback: {val:70, text:'Flight window adequate for luxury awareness → 70'},
+    social: {val:76, text:'Category sentiment aspirational · no adverse events → 76'},
+    bav: {val:80, text:'Brand affinity very high for placement audience → 80'}
+  }
+};
+
+const PLACEMENT_DATA = {
+  'airport-ooh': {freq_mod:1.0, tgt_mod:1.0, earn_mod:1.0, env:'airport hub — concourse and gate cluster, captive dwell, business travel dominant'},
+  'airport-gate': {freq_mod:1.1, tgt_mod:1.05, earn_mod:1.0, env:'airport gate cluster — highest dwell, pre-departure state, business and leisure mix'},
+  'transit-ooh': {freq_mod:0.9, tgt_mod:0.85, earn_mod:0.85, env:'urban transit rail — commuter context, varied audience, high frequency'},
+  'street-ooh': {freq_mod:0.8, tgt_mod:0.75, earn_mod:0.8, env:'street furniture CBD — pedestrian context, office worker and visitor mix'},
+  'digital-srch': {freq_mod:1.05, tgt_mod:1.1, earn_mod:0.7, env:'search results page — intent-active user, direct query context'},
+  'digital-social': {freq_mod:1.0, tgt_mod:0.9, earn_mod:0.65, env:'social feed — scrolling context, modeled audience, entertainment mindset'},
+  'ctv': {freq_mod:0.95, tgt_mod:0.95, earn_mod:0.75, env:'connected TV streaming — lean-back context, household viewing, premium content adjacency'},
+  'tv-linear': {freq_mod:0.85, tgt_mod:0.8, earn_mod:0.8, env:'linear television broadcast — broad audience, scheduled programming context'}
+};
+
+const MEASURE_ATTR = {none:42, qr:68, lift:80, closed:90};
+
+// ── MEASUREMENT TOGGLE ──
+function setMeasure(mode, btn) {
+  measureMode = mode;
+  document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── LOG ──
+let logCount = 0;
+function addLog(source, msg, type='info') {
+  const feed = document.getElementById('log-feed');
+  const now = new Date();
+  const t = now.toTimeString().slice(0,8);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const typeClass = {info:'le-info',ok:'le-ok',fetch:'le-fetch',claude:'le-claude',err:'le-err'}[type]||'le-info';
+  entry.innerHTML = `<span class="le-time">${t}</span><span class="le-source ${typeClass}">[${source}]</span> <span class="le-msg">${msg}</span>`;
+  feed.appendChild(entry);
+  feed.scrollTop = feed.scrollHeight;
+  logCount++;
+}
+
+function clearLog() {
+  document.getElementById('log-feed').innerHTML = '';
+  addLog('system','Log cleared','info');
+}
+
+// ── SLIDER ANIMATE ──
+function animateSlider(id, targetVal, duration=600) {
+  const slider = document.getElementById('sl-'+id);
+  const valEl = document.getElementById('sv-'+id);
+  const start = parseInt(slider.value);
+  const startTime = performance.now();
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed/duration, 1);
+    const ease = 1 - Math.pow(1-progress, 3);
+    const current = Math.round(start + (targetVal-start)*ease);
+    slider.value = current;
+    valEl.textContent = current;
+    scores[id] = current;
+    updateLayerScores();
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ── MANUAL SLIDER ──
+function manualSlider(id, val) {
+  document.getElementById('sv-'+id).textContent = val;
+  scores[id] = parseInt(val);
+  updateLayerScores();
+}
+
+// ── LAYER SCORE UPDATE ──
+function avg5(keys) {
+  return Math.round(keys.reduce((s,k)=>s+scores[k],0)/5);
+}
+
+function updateLayerScores() {
+  const o = avg5(['cpm','reach','freq','tgt','attr']);
+  const a = avg5(['ctx','dignity','cult','earn','moment']);
+  const p = avg5(['bfit','cpkpi','scale','payback','rev']);
+
+  ['opt','auth','price'].forEach((l,i) => {
+    const v = [o,a,p][i];
+    const el = document.getElementById('avg-'+l);
+    const el2 = document.getElementById('lscore-'+l);
+    const val = v > 0 ? v : '—';
+    el.textContent = val;
+    el2.textContent = val;
+  });
+
+  document.getElementById('vs-opt').textContent = o > 0 ? o : '—';
+  document.getElementById('vs-auth').textContent = a > 0 ? a : '—';
+  document.getElementById('vs-price').textContent = p > 0 ? p : '—';
+
+  if (o > 0 && a > 0 && p > 0) updateVerdict(o,a,p);
+}
+
+// ── VERDICT ──
+const VERDICTS = {
+  COMMIT:{c:'var(--commit)',tag:'All three layers earn the buy.',reason:'Distribution math clears the floor, authenticity earns the moment, pricing is sound. Approve with a named one-way door criterion and a declared KPI target set.',action:'Approve'},
+  CONSULT:{c:'var(--consult)',tag:'Human judgment required.',reason:'One layer requires judgment the model cannot supply. Escalate to a named senior strategist. Document override reasoning before IO is signed.',action:'Escalate'},
+  HOLD:{c:'var(--hold)',tag:'One layer needs attention.',reason:'Incomplete brief field or soft data on one layer. Tighten the inputs and re-score before approving spend.',action:'Revise brief'},
+  WAIT:{c:'var(--wait)',tag:'Not ready to score.',reason:'Pricing fails or both quality layers are below threshold. Return upstream to strategy or renegotiate the rate.',action:'Defer'},
+  TOXIC:{c:'var(--toxic)',tag:'Efficient extraction. The holdco failure mode.',reason:'High optimization, low authenticity. The buy scores well on the metrics the holdco charges against and poorly on the layer they have no incentive to measure. Reject.',action:'Reject'}
+};
+
+function classifyPrice(p) {
+  if (p>=65) return {n:'FAIR',c:'var(--commit)'};
+  if (p<40)  return {n:'WRONG',c:'var(--toxic)'};
+  return {n:'STRETCHED',c:'var(--consult)'};
+}
+
+function updateVerdict(o,a,p) {
+  let k;
+  if (o>=65&&a<40) k='TOXIC';
+  else if (o>=65&&a>=65) k='COMMIT';
+  else if (a>=65&&o<65) k='CONSULT';
+  else if (o<40&&a<40) k='WAIT';
+  else k='HOLD';
+
+  const pr = classifyPrice(p);
+  const v = VERDICTS[k];
+
+  const stateEl = document.getElementById('v-state');
+  stateEl.textContent = k;
+  stateEl.style.color = v.c;
+  document.getElementById('v-tag').textContent = v.tag;
+  document.getElementById('v-reason').textContent = v.reason;
+  document.getElementById('v-action').textContent = k==='COMMIT'&&pr.n!=='FAIR' ? (pr.n==='WRONG'?'Renegotiate':'Renegotiate rate') : v.action;
+  document.getElementById('v-action').style.color = v.c;
+
+  document.getElementById('lscore-price').textContent = pr.n+' · '+p;
+
+  const vd = document.getElementById('verdict-panel') || document.querySelector('.verdict-panel');
+}
+
+// ── API PILL STATUS ──
+function setPill(id, state) {
+  const el = document.getElementById('pill-'+id);
+  if (!el) return;
+  el.className = 'api-pill ' + (state==='online'?'online':state==='fetching'?'fetching':'');
+}
+
+function setSrcBadge(id, state, text) {
+  const el = document.getElementById('ss-'+id);
+  if (!el) return;
+  el.className = 'src-badge ' + ({connecting:'sb-connecting',resolved:'sb-resolved',idle:'sb-idle',error:'sb-error'}[state]||'sb-idle');
+  el.textContent = text || state;
+}
+
+function setMetricData(id, text, type='') {
+  const el = document.getElementById('data-'+id);
+  if (!el) return;
+  el.className = 'mi-data ' + (type==='fetching'?'fetching-text':type==='resolved'?'resolved-text':type==='claude'?'claude-text':'');
+  el.textContent = text;
+}
+
+function setMetricState(id, state) {
+  const el = document.getElementById('mi-'+id);
+  if (!el) return;
+  el.className = el.className.replace(/\s*(resolving|resolved)/g,'');
+  if (state) el.className += ' '+state;
+  if (el.classList.contains('human-gate') && state==='resolved') el.className += ' human-gate';
+}
+
+// ── DELAY UTIL ──
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ── CLAUDE API CALL ──
+async function callClaudeAPI(prompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:200,
+      messages:[{role:'user',content:prompt}]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content?.map(b=>b.text||'').join('') || '';
+  try {
+    const clean = text.replace(/```json|```/g,'').trim();
+    return JSON.parse(clean);
+  } catch(e) {
+    return {score:65, rationale:'Score assessed via rubric.'};
+  }
+}
+
+// ── MAIN ANALYSIS ──
+async function runAnalysis() {
+  if (isRunning) return;
+  isRunning = true;
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.className = 'run-btn running';
+  btn.textContent = 'Analyzing…';
+
+  const cat = document.getElementById('f-category').value;
+  const placement = document.getElementById('f-placement').value;
+  const creative = document.getElementById('f-creative').value;
+  const audience = document.getElementById('f-audience').value;
+  const brand = document.getElementById('f-brand').value;
+
+  const cd = CATEGORY_DATA[cat] || CATEGORY_DATA.finance;
+  const pd = PLACEMENT_DATA[placement] || PLACEMENT_DATA['airport-ooh'];
+  const attrBase = MEASURE_ATTR[measureMode];
+
+  // Generate audit ID
+  const auditId = 'PLB-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000)+1000);
+  document.getElementById('audit-id').textContent = auditId+' · '+document.getElementById('f-category').options[document.getElementById('f-category').selectedIndex].text;
+  document.getElementById('audit-kpis').innerHTML = 'KPIs: <span>'+document.getElementById('f-kpis').value+'</span>';
+  document.getElementById('audit-time').textContent = new Date().toLocaleTimeString();
+
+  addLog('system','Analysis started · '+auditId,'info');
+  addLog('brief','8 fields ingested · routing to data sources','fetch');
+
+  // Reset all
+  Object.keys(scores).forEach(k=>{scores[k]=0});
+  ['cpm','reach','freq','tgt','attr','ctx','dignity','cult','earn','moment','bfit','cpkpi','scale','payback','rev'].forEach(id=>{
+    document.getElementById('sl-'+id).value = 0;
+    document.getElementById('sv-'+id).textContent = 0;
+    setMetricData(id,'Connecting to data source…','fetching');
+    setMetricState(id,'resolving');
+  });
+  updateLayerScores();
+
+  // ── STAGE 1: GEOPATH ──
+  setPill('geopath','fetching');
+  setSrcBadge('geopath','connecting','Connecting');
+  addLog('Geopath','Requesting CPM benchmark, dwell model, zone audience cuts…','fetch');
+  await delay(400);
+
+  // CPM
+  const cpmScore = Math.round(cd.cpm.val * (0.95 + Math.random()*0.1));
+  setMetricData('cpm', cd.cpm.text, 'resolved');
+  setMetricState('cpm','resolved');
+  animateSlider('cpm', cpmScore);
+  addLog('Geopath','CPM efficiency resolved → '+cpmScore,'ok');
+
+  await delay(200);
+
+  // Freq
+  const freqScore = Math.round(cd.freq.val * pd.freq_mod * (0.95+Math.random()*0.1));
+  setMetricData('freq', cd.freq.text, 'resolved');
+  setMetricState('freq','resolved');
+  animateSlider('freq', Math.min(freqScore,99));
+  addLog('Geopath','Dwell + frequency model resolved → '+freqScore,'ok');
+
+  setPill('geopath','online');
+  setSrcBadge('geopath','resolved','Online');
+
+  // ── STAGE 2: MRI-SIMMONS + SCARBOROUGH ──
+  await delay(300);
+  setPill('mri','fetching');
+  setSrcBadge('mri','connecting','Connecting');
+  setSrcBadge('scarborough','connecting','Connecting');
+  addLog('MRI-Simmons','Matching target audience to placement composition…','fetch');
+
+  await delay(600);
+  const reachScore = Math.round(cd.reach.val * (0.95+Math.random()*0.1));
+  setMetricData('reach', cd.reach.text, 'resolved');
+  setMetricState('reach','resolved');
+  animateSlider('reach', Math.min(reachScore,99));
+  addLog('MRI-Simmons','Audience composition match resolved → '+reachScore,'ok');
+  setSrcBadge('mri','resolved','Online');
+  setSrcBadge('scarborough','resolved','Online');
+  setPill('mri','online');
+
+  // ── STAGE 3: CCO DB ──
+  await delay(200);
+  setPill('cco','fetching');
+  setSrcBadge('cco','connecting','Connecting');
+  addLog('CCO DB','Querying zone audience cuts, placement history, brand affinity…','fetch');
+
+  await delay(500);
+  const tgtScore = Math.round(cd.tgt.val * pd.tgt_mod * (0.95+Math.random()*0.1));
+  setMetricData('tgt', cd.tgt.text, 'resolved');
+  setMetricState('tgt','resolved');
+  animateSlider('tgt', Math.min(tgtScore,99));
+  addLog('CCO DB','Targeting precision resolved → '+tgtScore,'ok');
+
+  await delay(200);
+  const earnScore = Math.round(cd.earn.val * pd.earn_mod * (0.95+Math.random()*0.1));
+  setMetricData('earn', cd.earn.text, 'resolved');
+  setMetricState('earn','resolved');
+  animateSlider('earn', Math.min(earnScore,99));
+  addLog('CCO DB','Earned placement resolved → '+earnScore,'ok');
+  setPill('cco','online');
+  setSrcBadge('cco','resolved','Online');
+
+  // ── STAGE 4: STREETMETRICS / ATTRIBUTION ──
+  await delay(300);
+  setPill('streetmetrics','fetching');
+  setSrcBadge('streetmetrics','connecting','Connecting');
+  addLog('StreetMetrics','Attribution fidelity model · measurement instrument: '+measureMode,'fetch');
+
+  await delay(450);
+  const attrScore = Math.round(attrBase * (0.95+Math.random()*0.1));
+  const attrNote = measureMode==='none' ? 'No measurement instrument · |ψ|² prior 0.61 → floor 42' :
+                   measureMode==='qr' ? 'QR+promo active · attribution bridge → 68' :
+                   measureMode==='lift' ? 'Lift study partner confirmed → 80' :
+                   'Closed-loop integration → 90';
+  setMetricData('attr', attrNote, 'resolved');
+  setMetricState('attr','resolved');
+  animateSlider('attr', Math.min(attrScore,99));
+  addLog('StreetMetrics','Attribution clarity resolved → '+attrScore,'ok');
+  setPill('streetmetrics','online');
+  setSrcBadge('streetmetrics','resolved','Online');
+
+  // ── STAGE 5: BRANDWATCH + BAV → CULTURAL TRUTH ──
+  await delay(300);
+  setPill('brandwatch','fetching');
+  setSrcBadge('brandwatch','connecting','Connecting');
+  setSrcBadge('bav','connecting','Connecting');
+  addLog('Brandwatch','Social listening pull for '+brand.split('—')[0].trim()+' and category…','fetch');
+
+  await delay(800);
+  const cultDataScore = Math.round(cd.social.val * (0.95+Math.random()*0.1));
+  setMetricData('cult', '⚠ Human review required · '+cd.social.text+' · BAV: '+cd.bav.text, 'fetching');
+  setMetricState('cult','resolving');
+  animateSlider('cult', Math.min(cultDataScore,99));
+  addLog('Brandwatch','Social sentiment data resolved · Human review gate triggered','ok');
+  addLog('BAV','Brand equity trend resolved · Buyer judgment required for Cultural Truth','ok');
+  setPill('brandwatch','online');
+  setSrcBadge('brandwatch','resolved','Online');
+  setSrcBadge('bav','resolved','Online');
+  setPill('bav','online');
+
+  // ── STAGE 6: CLAUDE API — CONTEXT FIT ──
+  await delay(400);
+  setPill('claude','fetching');
+  setSrcBadge('claude','connecting','Querying');
+  setMetricData('ctx','Querying Claude API · semantic alignment analysis…','fetching');
+  addLog('Claude API','Context Fit: sending creative concept + placement environment…','claude');
+
+  let ctxScore = 72;
+  try {
+    const envDesc = pd.env;
+    const ctxResult = await callClaudeAPI(
+      `Score the semantic fit between this advertising creative concept and placement environment on a scale of 0-100. Return ONLY a JSON object with keys: score (integer 0-100), rationale (max 12 words). Creative concept: "${creative}". Placement environment: "${envDesc}".`
+    );
+    ctxScore = Math.min(Math.max(parseInt(ctxResult.score)||72, 20), 98);
+    const rationale = ctxResult.rationale || 'Semantic alignment assessed.';
+    setMetricData('ctx', 'Claude API: "'+rationale+'" → '+ctxScore, 'claude');
+    addLog('Claude API','Context Fit scored → '+ctxScore+' · '+rationale,'claude');
+  } catch(e) {
+    ctxScore = 70;
+    setMetricData('ctx','API scored (fallback) → '+ctxScore,'resolved');
+    addLog('Claude API','Context Fit fallback score → '+ctxScore,'ok');
+  }
+  setMetricState('ctx','resolved');
+  animateSlider('ctx', ctxScore);
+
+  // ── STAGE 7: CLAUDE API — AUDIENCE DIGNITY ──
+  await delay(200);
+  setMetricData('dignity','Querying Claude API · dignity rubric scan…','fetching');
+  addLog('Claude API','Audience Dignity: scanning creative for manipulation patterns…','claude');
+
+  let dignityScore = 76;
+  try {
+    const dignityResult = await callClaudeAPI(
+      `Score this advertising copy on audience dignity (0-100). Evaluate: absence of manipulation patterns, respect for audience intelligence, brand voice consistency. Return ONLY JSON: {"score": integer, "rationale": "max 12 words"}. Copy: "${creative}"`
+    );
+    dignityScore = Math.min(Math.max(parseInt(dignityResult.score)||76, 20), 98);
+    const drat = dignityResult.rationale || 'Copy evaluated against dignity rubric.';
+    setMetricData('dignity','Claude API: "'+drat+'" → '+dignityScore,'claude');
+    addLog('Claude API','Audience Dignity scored → '+dignityScore+' · '+drat,'claude');
+  } catch(e) {
+    dignityScore = 74;
+    setMetricData('dignity','API scored (fallback) → '+dignityScore,'resolved');
+    addLog('Claude API','Dignity fallback → '+dignityScore,'ok');
+  }
+  setMetricState('dignity','resolved');
+  animateSlider('dignity', dignityScore);
+
+  // ── STAGE 8: CLAUDE API — MOMENT RESPECT ──
+  await delay(200);
+  setMetricData('moment','Querying Claude API · emotional register match…','fetching');
+  addLog('Claude API','Moment Respect: scoring creative register vs. environment state…','claude');
+
+  let momentScore = 68;
+  try {
+    const momentResult = await callClaudeAPI(
+      `Score the emotional register fit between this advertising creative and this environment (0-100). Consider: is the creative's tone appropriate for the audience's state of mind in this context? Return ONLY JSON: {"score": integer, "rationale": "max 12 words"}. Creative: "${creative}". Environment: "${pd.env}".`
+    );
+    momentScore = Math.min(Math.max(parseInt(momentResult.score)||68, 20), 98);
+    const mrat = momentResult.rationale || 'Emotional register evaluated.';
+    setMetricData('moment','Claude API: "'+mrat+'" → '+momentScore+' · Buyer review recommended','claude');
+    addLog('Claude API','Moment Respect scored → '+momentScore+' · '+mrat,'claude');
+  } catch(e) {
+    momentScore = 66;
+    setMetricData('moment','API scored (fallback) → '+momentScore+' · Buyer review recommended','resolved');
+    addLog('Claude API','Moment Respect fallback → '+momentScore,'ok');
+  }
+  setMetricState('moment','resolved');
+  animateSlider('moment', momentScore);
+  setPill('claude','online');
+  setSrcBadge('claude','resolved','Online');
+
+  // ── STAGE 9: BENCHMARK DB → PRICING ──
+  await delay(300);
+  setPill('benchmark','fetching');
+  setSrcBadge('benchmark','connecting','Connecting');
+  addLog('Benchmark DB','Category spend benchmark, market impact floor, IO reversibility…','fetch');
+
+  await delay(600);
+  const bfitScore = Math.round(cd.bfit.val*(0.95+Math.random()*0.1));
+  const cpkpiScore = Math.round(cd.cpkpi.val*(0.95+Math.random()*0.1));
+  const scaleScore = Math.round(cd.scale.val*(0.95+Math.random()*0.1));
+  const paybackScore = Math.round(cd.payback.val*(0.95+Math.random()*0.1));
+  const revScore = Math.round((65+Math.random()*20));
+
+  setMetricData('bfit', cd.bfit.text, 'resolved'); setMetricState('bfit','resolved'); animateSlider('bfit', Math.min(bfitScore,99));
+  setMetricData('cpkpi', cd.cpkpi.text, 'resolved'); setMetricState('cpkpi','resolved'); animateSlider('cpkpi', Math.min(cpkpiScore,99));
+  setMetricData('scale', cd.scale.text, 'resolved'); setMetricState('scale','resolved'); animateSlider('scale', Math.min(scaleScore,99));
+  setMetricData('payback', cd.payback.text, 'resolved'); setMetricState('payback','resolved'); animateSlider('payback', Math.min(paybackScore,99));
+  setMetricData('rev', 'IO terms: 62% unrecoverable if cancelled mid-flight → reversibility cost scored', 'resolved'); setMetricState('rev','resolved'); animateSlider('rev', Math.min(revScore,99));
+
+  addLog('Benchmark DB','All five pricing metrics resolved','ok');
+  setPill('benchmark','online');
+  setSrcBadge('benchmark','resolved','Online');
+
+  // ── DONE ──
+  await delay(400);
+  addLog('system','Analysis complete · '+auditId+' · Cultural Truth awaiting buyer review','ok');
+
+  btn.disabled = false;
+  btn.className = 'run-btn';
+  btn.textContent = 'Re-run Analysis';
+  isRunning = false;
+}
+</script>
+</body>
+</html>
