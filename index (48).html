@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plumb · The three-layer buyside audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=IBM+Plex+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Pitch / nav tokens — light */
+  --bg:#faf9f5;--bg2:#f3f1eb;--bg3:#ecebe3;
+  --text:#1a1815;--text2:#4a4640;--text3:#8b857b;
+  --line:rgba(26,24,21,0.1);
+  --bt:#0a5d4a;--bt2:#0d7659;--bt-bg:rgba(10,93,74,0.07);
+  --pr:#9d6a14;--pr-bg:rgba(157,106,20,0.07);
+  --c-commit:#2d5a0c;--c-commit-bg:#e8efd9;
+  --c-consult:#6e3f08;--c-consult-bg:#f5e6cc;
+  --c-hold:#14457b;--c-hold-bg:#dde9f7;
+  --c-toxic:#621818;--c-toxic-bg:#f5d6d6;
+  --c-wait:#383530;--c-wait-bg:#ebe8e0;
+  /* Tool section tokens — dark */
+  --dk:#13110e;--dk2:#1d1a16;--dk3:#26231e;
+  --dk-line:rgba(255,255,255,0.08);--dk-line2:rgba(255,255,255,0.04);
+  --dk-text:#f0ece4;--dk-text2:rgba(240,236,228,0.65);--dk-text3:rgba(240,236,228,0.35);
+  --dk-bt:#5aabb0;--dk-pr:#c8971f;
+  --dk-commit:#6fd49a;--dk-commit-bg:rgba(27,110,58,0.2);
+  --dk-consult:#c5a0f0;--dk-consult-bg:rgba(106,58,154,0.2);
+  --dk-hold:#8bbef0;--dk-hold-bg:rgba(36,94,138,0.2);
+  --dk-toxic:#f08080;--dk-toxic-bg:rgba(138,26,26,0.22);
+  --dk-wait:rgba(240,236,228,0.45);--dk-wait-bg:rgba(56,53,48,0.4);
+  --display:'Fraunces',Georgia,serif;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{font-family:var(--sans);font-weight:300;background:var(--bg);color:var(--text);line-height:1.55;font-size:15px;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+
+/* ── NAV ── */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(250,249,245,0.95);backdrop-filter:blur(12px);border-bottom:0.5px solid var(--line);height:64px;display:flex;align-items:center;padding:0 40px}
+.topbar-inner{max-width:1280px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:-0.01em;color:var(--text)}
+.brand svg{display:block;color:var(--bt)}
+.nav-links{display:flex;gap:32px;font-size:13px;font-weight:400}
+.nav-links a{color:var(--text2);transition:color 0.15s}
+.nav-links a:hover,.nav-links a.active{color:var(--text)}
+.nav-tag{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:0.05em}
+
+/* ── PITCH (light) ── */
+main{max-width:1280px;margin:0 auto;padding:0 40px}
+.eb{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3);font-weight:400}
+.slide{min-height:84vh;padding:80px 0;display:flex;flex-direction:column;justify-content:center;border-bottom:0.5px solid var(--line)}
+.slide:last-of-type{border-bottom:none}
+.slide-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:48px}
+.slide-num{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:0.1em}
+.slide h1{font-family:var(--display);font-weight:300;font-size:clamp(48px,7vw,96px);line-height:1.02;letter-spacing:-0.02em;margin-bottom:24px}
+.slide h1 em{font-style:italic;font-weight:400}
+.slide h2{font-family:var(--display);font-weight:400;font-size:clamp(36px,4.5vw,56px);line-height:1.1;letter-spacing:-0.015em;margin-bottom:32px;max-width:900px}
+.slide-body{font-size:16px;line-height:1.7;color:var(--text2);max-width:680px;font-weight:300}
+.slide-body p+p{margin-top:16px}
+.slide-attr{font-family:var(--display);font-style:italic;font-weight:300;color:var(--text3);font-size:15px;margin-top:24px}
+
+.cover{align-items:center;justify-content:center;text-align:center;min-height:90vh;position:relative}
+.cover-mark{margin-bottom:32px;color:var(--bt)}
+.cover h1{font-size:clamp(96px,16vw,200px);font-weight:300;line-height:0.95;letter-spacing:-0.04em;margin-bottom:0}
+.cover h1 .dot{color:var(--bt)}
+.cover-sub{font-family:var(--display);font-weight:300;font-style:italic;font-size:clamp(20px,2.4vw,28px);color:var(--text2);margin-top:8px}
+.cover-tag{font-size:13px;color:var(--text3);margin-top:48px;letter-spacing:0.05em;max-width:520px}
+.cover-meta{position:absolute;bottom:48px;left:0;right:0;display:flex;justify-content:space-between;padding:0 40px;font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:0.05em}
+
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;margin-top:24px}
+.col-card{padding:24px 0;border-top:1.5px solid var(--text)}
+.col-card .label{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.col-card h3{font-family:var(--display);font-weight:400;font-size:32px;line-height:1.1;letter-spacing:-0.015em;margin-bottom:14px}
+.col-card .body{font-size:14px;line-height:1.65;color:var(--text2)}
+.col-card .body strong{font-weight:500;color:var(--text)}
+.col-card.accent{border-top-color:var(--bt)}.col-card.accent h3{color:var(--bt)}
+.col-card.accent2{border-top-color:var(--pr)}.col-card.accent2 h3{color:var(--pr)}
+
+.comp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-top:40px;border-top:0.5px solid var(--line)}
+.comp-col{padding:28px 28px 28px 0;border-bottom:0.5px solid var(--line)}
+.comp-col .comp-label{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.comp-col h3{font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:-0.01em;margin-bottom:10px}
+.comp-col .comp-desc{font-size:14px;line-height:1.65;color:var(--text2);margin-bottom:14px}
+.comp-col .comp-flaw{font-size:13px;line-height:1.6;color:var(--c-toxic);padding-top:12px;border-top:0.5px solid var(--line)}
+
+.states-list{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:32px;border-top:0.5px solid var(--line)}
+.state-row{display:grid;grid-template-columns:140px 1fr;align-items:baseline;padding:24px 24px 24px 0;border-bottom:0.5px solid var(--line);gap:24px}
+.state-row.span2{grid-column:span 2}
+.state-name{font-family:var(--display);font-weight:400;font-size:28px;letter-spacing:-0.01em}
+.state-text{font-size:15px;color:var(--text2);line-height:1.6}
+.s-commit{color:var(--c-commit)}.s-consult{color:var(--c-consult)}
+.s-hold{color:var(--c-hold)}.s-wait{color:var(--c-wait)}.s-toxic{color:var(--c-toxic)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:32px}
+.stat{padding:20px 24px;border-left:0.5px solid var(--line)}
+.stat:first-child{border-left:0;padding-left:0}
+.stat-num{font-family:var(--display);font-weight:300;font-size:64px;line-height:1;letter-spacing:-0.02em;margin-bottom:6px}
+.stat-num .unit{font-size:24px;color:var(--text3);font-weight:300;margin-left:2px}
+.stat-label{font-size:12px;color:var(--text3);letter-spacing:0.04em}
+
+.cta-block{background:var(--bg2);padding:64px;border-radius:4px;margin-top:32px;border:0.5px solid var(--line)}
+.cta-block h2{margin-bottom:24px}
+.cta-block .body{font-size:17px;line-height:1.7;color:var(--text2);max-width:640px;margin-bottom:32px;font-weight:300}
+.cta-block .body p+p{margin-top:16px}
+.cta-btn{display:inline-flex;align-items:center;gap:10px;background:var(--text);color:var(--bg);padding:14px 26px;border-radius:2px;font-size:14px;font-weight:400;letter-spacing:0.02em}
+.cta-btn:hover{background:var(--bt)}
+
+/* ── TOOLS DIVIDER ── */
+.tools-intro{background:var(--dk);padding:60px 40px;text-align:center;border-top:0.5px solid var(--line)}
+.tools-intro .eb-dk{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dk-text3);font-weight:400;margin-bottom:16px}
+.tools-intro h2{font-family:var(--display);font-weight:300;font-size:40px;letter-spacing:-0.02em;line-height:1.1;color:var(--dk-text);margin-bottom:12px}
+.tools-intro .body{color:var(--dk-text2);font-size:15px;max-width:560px;margin:0 auto;line-height:1.65;font-weight:300}
+
+/* ── TOOLS (dark) ── */
+.tool-section{background:var(--dk);padding:72px 0;border-top:0.5px solid var(--dk-line)}
+.tool-section + .tool-section{border-top:0.5px solid var(--dk-line)}
+.tool-inner{max-width:1280px;margin:0 auto;padding:0 40px}
+
+.section-label{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:40px;padding-bottom:16px;border-bottom:0.5px solid var(--dk-line)}
+.section-label .eb-tool{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dk-bt);font-weight:400}
+.section-label .mono{font-family:var(--mono);font-size:11px;color:var(--dk-text3);letter-spacing:0.05em}
+
+.pill{font-family:var(--mono);font-size:11px;letter-spacing:0.04em;text-transform:uppercase;padding:3px 9px;border-radius:3px;display:inline-block;font-weight:500;white-space:nowrap}
+
+/* Scorer */
+.scorer-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;margin-bottom:2px;background:var(--dk-line)}
+.layer-card{background:var(--dk2);padding:28px}
+.layer-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;padding-bottom:16px;border-bottom:0.5px solid var(--dk-line)}
+.layer-name{font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:-0.01em;color:var(--dk-text)}
+.layer-score{font-family:var(--mono);font-size:32px;font-weight:500;line-height:1}
+.layer-sub{font-size:11px;color:var(--dk-text3);letter-spacing:0.04em;margin-top:3px}
+.lc-opt .layer-score{color:var(--dk-text2)}
+.lc-auth .layer-score{color:var(--dk-bt)}
+.lc-price .layer-score{color:var(--dk-pr)}
+
+.metric{margin-bottom:16px}
+.metric-label-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.metric-name{font-size:13px;color:var(--dk-text2)}
+.metric-src{font-size:10px;color:var(--dk-text3);letter-spacing:0.03em;display:block;margin-top:2px}
+.metric-val{font-family:var(--mono);font-size:13px;font-weight:500}
+.lc-opt .metric-val{color:var(--dk-text)}
+.lc-auth .metric-val{color:var(--dk-bt)}
+.lc-price .metric-val{color:var(--dk-pr)}
+
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;background:transparent;height:20px;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--dk-line);border-radius:1px}
+input[type=range]::-moz-range-track{height:2px;background:var(--dk-line);border-radius:1px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;height:14px;width:14px;border-radius:50%;margin-top:-6px;border:0}
+input[type=range]::-moz-range-thumb{height:14px;width:14px;border-radius:50%;border:0}
+.lc-opt input[type=range]::-webkit-slider-thumb{background:#f0ece4}
+.lc-opt input[type=range]::-moz-range-thumb{background:#f0ece4}
+.lc-auth input[type=range]::-webkit-slider-thumb{background:var(--dk-bt)}
+.lc-auth input[type=range]::-moz-range-thumb{background:var(--dk-bt)}
+.lc-price input[type=range]::-webkit-slider-thumb{background:var(--dk-pr)}
+.lc-price input[type=range]::-moz-range-thumb{background:var(--dk-pr)}
+
+/* Verdict */
+.verdict{background:var(--dk2);border-top:2px solid var(--dk-commit);padding:32px 36px;margin-top:2px}
+.verdict-head{display:flex;justify-content:space-between;align-items:flex-start;gap:32px;flex-wrap:wrap}
+.verdict-main{flex:2;min-width:280px}
+.verdict-eb{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dk-text3);margin-bottom:8px}
+.verdict-state{font-family:var(--display);font-weight:400;font-size:56px;line-height:1;letter-spacing:-0.02em;margin-bottom:8px}
+.verdict-tag{font-family:var(--display);font-style:italic;font-weight:300;font-size:18px;color:var(--dk-text2)}
+.verdict-reason{font-size:15px;color:var(--dk-text2);line-height:1.7;margin-top:18px;max-width:520px;font-weight:300}
+.verdict-side{flex:1;min-width:160px;display:flex;flex-direction:column;gap:10px}
+.verdict-stat{background:var(--dk3);padding:14px 16px;border-radius:3px}
+.verdict-stat .l{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--dk-text3);margin-bottom:4px}
+.verdict-stat .v{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--dk-text)}
+.verdict-action{margin-top:24px;padding-top:18px;border-top:0.5px solid var(--dk-line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.verdict-action .label{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--dk-text3)}
+.verdict-action .value{font-family:var(--display);font-size:20px;letter-spacing:0.02em;color:var(--dk-text)}
+
+/* Compare */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;background:var(--dk-line)}
+.v-card{background:var(--dk2);padding:24px;position:relative}
+.v-card.rec{outline:2px solid var(--dk-commit);outline-offset:-2px}
+.v-card.rec::before{content:"RECOMMENDED";position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--dk-commit-bg);color:var(--dk-commit);font-size:11px;letter-spacing:0.15em;padding:4px 12px;border-radius:3px;font-family:var(--mono);font-weight:500}
+.v-card .vlabel{font-family:var(--mono);font-size:11px;color:var(--dk-text3);letter-spacing:0.05em;margin-bottom:6px}
+.v-card .vname{font-family:var(--display);font-weight:400;font-size:24px;letter-spacing:-0.01em;margin-bottom:8px;color:var(--dk-text)}
+.v-card .vdesc{font-size:12.5px;color:var(--dk-text2);line-height:1.5;margin-bottom:16px;min-height:38px}
+.v-spend{padding:12px 0;border-top:0.5px solid var(--dk-line);border-bottom:0.5px solid var(--dk-line);margin-bottom:16px;display:flex;justify-content:space-between;align-items:baseline}
+.v-spend .l{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--dk-text3)}
+.v-spend .v{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--dk-text)}
+.v-bars{margin-bottom:16px}
+.v-bar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.v-bar .l{font-size:11px;color:var(--dk-text2);width:38px}
+.v-bar .t{flex:1;height:4px;background:var(--dk3);border-radius:2px;overflow:hidden}
+.v-bar .f{height:100%}
+.v-bar .v{font-family:var(--mono);font-size:11.5px;width:22px;text-align:right;font-weight:500;color:var(--dk-text2)}
+.v-pills{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.v-final{padding-top:12px;border-top:0.5px solid var(--dk-line);font-size:12px;color:var(--dk-text2);line-height:1.5}
+.v-final strong{font-weight:500}
+
+.recommend-box{background:var(--dk2);border-left:4px solid var(--dk-commit);padding:24px 32px;margin-top:2px}
+.recommend-box .eb-tool{color:var(--dk-commit);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:400;margin-bottom:10px}
+.recommend-box p{font-size:15px;line-height:1.7;color:var(--dk-text2);font-weight:300}
+
+/* KPI strip */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:0.5px solid var(--dk-line);background:var(--dk2);margin-bottom:24px}
+.kpi{padding:22px 24px;border-left:0.5px solid var(--dk-line)}
+.kpi:first-child{border-left:0}
+.kpi .l{font-size:10px;color:var(--dk-text3);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px}
+.kpi .v{font-family:var(--display);font-weight:400;font-size:40px;line-height:1;letter-spacing:-0.02em;color:var(--dk-text)}
+.kpi .v .unit{font-size:18px;color:var(--dk-text3)}
+.kpi .v.green{color:var(--dk-commit)}
+.kpi .v.red{color:var(--dk-toxic)}
+
+/* Risk bar */
+.risk-bar-wrap{background:var(--dk2);border:0.5px solid var(--dk-line);padding:20px 24px;margin-bottom:24px}
+.risk-bar-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.risk-bar-head .eb-sm{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--dk-text3);font-weight:400}
+.risk-bar-head .mono{font-family:var(--mono);font-size:11px;color:var(--dk-text3);letter-spacing:0.05em}
+.risk-bar{display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--dk3);margin-bottom:10px}
+.risk-bar .seg{height:100%}
+.risk-legend{display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px;color:var(--dk-text2)}
+.risk-legend span{display:flex;align-items:center;gap:6px}
+.risk-legend .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+/* Table */
+.dk-table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--dk2);border:0.5px solid var(--dk-line)}
+.dk-table thead{background:var(--dk3)}
+.dk-table th{font-size:11px;color:var(--dk-text3);letter-spacing:0.1em;text-transform:uppercase;font-weight:400;text-align:left;padding:14px 12px}
+.dk-table td{padding:13px 12px;border-top:0.5px solid var(--dk-line);vertical-align:middle;color:var(--dk-text2)}
+.row-rail{width:4px;padding:0!important}
+.t-mono{font-family:var(--mono);font-weight:500;color:var(--dk-text)}
+.t-sub{font-size:11px;color:var(--dk-text3);font-weight:300;display:block;margin-top:2px}
+.t-name{font-weight:500;font-size:13px;color:var(--dk-text)}
+
+.eb-sm{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--dk-text3);font-weight:400}
+
+.consult-callout{background:var(--dk-consult-bg);border-left:3px solid var(--dk-consult);padding:20px 28px;margin-top:16px}
+.consult-callout .eb-c{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dk-consult);font-weight:400;margin-bottom:8px}
+.consult-callout p{font-size:14px;line-height:1.7;color:var(--dk-text2)}
+
+/* Workflow */
+.review-pane{background:var(--dk2);border:0.5px solid var(--dk-line);padding:28px;margin-top:16px}
+.review-head{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.review-head .dot{width:9px;height:9px;background:var(--dk-consult);border-radius:50%;flex-shrink:0}
+.review-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+.review-col{background:var(--dk3);border:0.5px solid var(--dk-line);padding:22px 24px}
+.review-col h4{font-family:var(--display);font-weight:400;font-size:20px;letter-spacing:-0.005em;margin-bottom:2px;color:var(--dk-text)}
+.review-col .sub{font-size:11.5px;color:var(--dk-text3);margin-bottom:16px;line-height:1.5}
+.review-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 0;border-top:0.5px solid var(--dk-line);border-bottom:0.5px solid var(--dk-line);margin-bottom:16px}
+.review-scores .s .l{font-size:10px;color:var(--dk-text3);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px}
+.review-scores .s .v{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--dk-text)}
+.review-trigger{font-size:13px;color:var(--dk-text2);line-height:1.65;margin-top:12px}
+.review-trigger strong{font-weight:500;color:var(--dk-text)}
+.review-meta{display:flex;justify-content:space-between;margin-bottom:14px}
+.review-meta .who{font-size:12.5px;font-weight:500;color:var(--dk-text)}
+.review-meta .timer{font-family:var(--mono);font-size:11px;color:var(--dk-text3)}
+textarea{width:100%;font-family:var(--sans);font-weight:300;font-size:13px;padding:10px 12px;line-height:1.6;resize:vertical;background:var(--dk2);border:0.5px solid var(--dk-line);color:var(--dk-text)}
+textarea:focus{outline:none;border-color:var(--dk-bt)}
+textarea::placeholder{color:var(--dk-text3)}
+.review-buttons{display:flex;gap:8px;margin-top:14px}
+.btn-primary{background:var(--dk-text);color:var(--dk);padding:9px 16px;border:0;font-size:12.5px;font-weight:400;letter-spacing:0.02em;cursor:pointer;font-family:var(--sans)}
+.btn-primary:hover{background:var(--dk-bt);color:var(--dk)}
+.btn-secondary{background:transparent;color:var(--dk-text2);padding:9px 14px;border:0.5px solid var(--dk-line);font-size:12.5px;font-weight:400;cursor:pointer;font-family:var(--sans)}
+.review-stamp{margin-top:16px;padding-top:14px;border-top:0.5px solid var(--dk-line);font-family:var(--mono);font-size:10.5px;color:var(--dk-text3);line-height:1.5}
+
+footer{padding:40px;border-top:0.5px solid var(--dk-line);font-family:var(--mono);font-size:11px;color:var(--dk-text3);letter-spacing:0.05em;text-align:center;background:var(--dk)}
+footer .mark{margin-bottom:12px;color:var(--dk-bt)}
+
+@media(max-width:1000px){
+  .three-col,.comp-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .scorer-grid,.compare-grid{grid-template-columns:1fr}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+  .review-grid{grid-template-columns:1fr}
+  .nav-links{gap:18px;font-size:12px}
+  .topbar,.tool-inner{padding-left:20px;padding-right:20px}
+  main{padding:0 20px}
+  .tools-intro{padding-left:20px;padding-right:20px}
+  .cover-meta{padding:0 20px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a href="#cover" class="brand">
+      <svg width="14" height="24" viewBox="0 0 14 24" fill="none">
+        <line x1="7" y1="0" x2="7" y2="16" stroke="currentColor" stroke-width="1"/>
+        <circle cx="7" cy="20" r="4" fill="currentColor"/>
+      </svg>
+      Plumb
+    </a>
+    <div class="nav-links">
+      <a href="#cover" data-nav>Pitch</a>
+      <a href="#math" data-nav>The Math</a>
+      <a href="#market" data-nav>The Market</a>
+      <a href="#scorer" data-nav>Scorer</a>
+      <a href="#compare" data-nav>Compare</a>
+      <a href="#history" data-nav>History</a>
+      <a href="#workflow" data-nav>Workflow</a>
+    </div>
+    <div class="nav-tag">AC Ads · v3</div>
+  </div>
+</nav>
+
+<!-- ════ PITCH (light) ════ -->
+<main>
+
+<section id="cover" class="slide cover">
+  <div class="cover-mark">
+    <svg width="32" height="56" viewBox="0 0 32 56" fill="none">
+      <line x1="16" y1="0" x2="16" y2="38" stroke="currentColor" stroke-width="1.2"/>
+      <circle cx="16" cy="46" r="9" fill="currentColor"/>
+    </svg>
+  </div>
+  <h1>Plumb<span class="dot">.</span></h1>
+  <div class="cover-sub">The three-layer buyside audit.</div>
+  <div class="cover-tag">Structurally independent media judgment. Scored across Optimization, Authenticity, and Pricing. Falsified at flight close. Applicable across every paid channel.</div>
+  <div class="cover-meta">
+    <span>AC Ads · 2026</span>
+    <span>v3 · prototype</span>
+  </div>
+</section>
+
+<section id="problem" class="slide">
+  <div class="slide-head"><span class="eb">The problem</span><span class="slide-num">01 / 06</span></div>
+  <h1>The operational layer <em>is no longer the value layer.</em></h1>
+  <div class="slide-body">
+    <p>Media agencies built their margin around a service that is now being automated. For two decades, the complexity of buying and placing advertising across channels justified significant fees and opacity. That complexity is no longer a barrier — AI platforms handle it natively and at cost.</p>
+    <p>The disruption is not coming. It has already moved into agency economics. What it exposes is a gap: the operational layer generated revenue without necessarily generating brand value. Plumb was built to fill that gap — to score what the machines can't price, and make the capital decision defensible before the IO is signed.</p>
+  </div>
+
+</section>
+
+<section id="comp" class="slide">
+  <div class="slide-head"><span class="eb">The conflict</span><span class="slide-num">02 / 06</span></div>
+  <h2>Three compensation models. One structural problem.</h2>
+  <div class="slide-body">
+    <p>The holdcos' accountability gap is not a payment-model question. Every compensation structure produces a version of the same conflict: the agency's economic incentive is not fully aligned with the brand's media outcome. Plumb is structurally upstream of all three.</p>
+  </div>
+  <div class="comp-grid">
+    <div class="comp-col">
+      <div class="comp-label">Model A</div>
+      <h3>Percentage of spend</h3>
+      <div class="comp-desc">The agency earns a fee as a percentage of total media spend. Higher volume equals higher compensation. Reach and frequency are rewarded regardless of whether the inventory earns the brand's presence in it.</div>
+      <div class="comp-flaw">Structural incentive to over-buy. The bigger plan pays more, whether or not it scores COMMIT.</div>
+    </div>
+    <div class="comp-col">
+      <div class="comp-label">Model B</div>
+      <h3>Principal buying</h3>
+      <div class="comp-desc">The agency acquires inventory at wholesale and resells to the client at a margin. They hold the position before the brand does. They are simultaneously advisor and counterparty — recommending inventory they already own. This arrangement has been documented and scrutinized by the ANA and industry bodies for over a decade. When an agency operates as a principal, the fiduciary relationship between advisor and client is structurally removed. The brand is not receiving independent counsel. It is receiving a sales recommendation from a counterparty with inventory to move.</div>
+      <div class="comp-flaw">The conflict is not behavioral — it is structural. No scoring system, incentive clause, or contract language fully resolves it while the principal position exists.</div>
+    </div>
+    <div class="comp-col">
+      <div class="comp-label">Model C</div>
+      <h3>Performance-based</h3>
+      <div class="comp-desc">Compensation is tied to measurable outcomes: ROAS, CPA, click attribution. Sounds aligned. In practice it optimizes for what is attributable, not for what builds brand standing or earns cultural trust over time.</div>
+      <div class="comp-flaw">Incentivizes optimization of trackable signals. Authenticity and cultural truth are not in the attribution model.</div>
+    </div>
+  </div>
+</section>
+
+<section id="framework" class="slide">
+  <div class="slide-head"><span class="eb">The answer</span><span class="slide-num">03 / 06</span></div>
+  <h2>Three layers. One verdict. Receipts at flight close.</h2>
+  <div class="three-col">
+    <div class="col-card">
+      <div class="label">Layer 1</div>
+      <h3>Optimization</h3>
+      <div class="body">CPM efficiency. Reach quality. Frequency fit. Targeting precision. Attribution clarity. The distribution floor. <strong>AI platforms automate this layer natively and at cost.</strong> It is necessary to score, but it is no longer sufficient to differentiate. Sourced from third-party audience data, platform rate cards, and measurement partner integrations.</div>
+    </div>
+    <div class="col-card accent">
+      <div class="label">Layer 2</div>
+      <h3>Authenticity</h3>
+      <div class="body">Context fit. Audience dignity. Cultural truth. Earned placement. Moment respect. <strong>The layer that cannot be automated</strong> — because it is not in the bid stream and cannot be reduced to a parameter. Scored via structured rubric and senior buyer judgment on the soft cases.</div>
+    </div>
+    <div class="col-card accent2">
+      <div class="label">Layer 3</div>
+      <h3>Pricing</h3>
+      <div class="body">Budget fit. Cost per KPI. Scale threshold. Payback window. Reversibility cost. The gate. <strong>The CFO asks it</strong> — not whether the buy is efficient, but whether the capital decision is sound. A COMMIT at WRONG price renegotiates before IO.</div>
+    </div>
+  </div>
+</section>
+
+<section id="kernel" class="slide">
+  <div class="slide-head"><span class="eb">The kernel</span><span class="slide-num">04 / 06</span></div>
+  <h2>Five states. One of them names the holdco trap.</h2>
+  <div class="states-list">
+    <div class="state-row">
+      <div class="state-name s-commit">Commit</div>
+      <div class="state-text">All three layers earn the buy. Distribution math clears the floor, authenticity earns the moment, pricing is sound. Approve with a named one-way door criterion and a documented KPI target set.</div>
+    </div>
+    <div class="state-row">
+      <div class="state-name s-consult">Consult</div>
+      <div class="state-text">One layer requires judgment the scoring model cannot supply — typically cultural truth or earned placement. Escalate to a named senior strategist. Override reasoning is logged as a permanent audit field. Documented escalations hit at 78%; undocumented at 33%.</div>
+    </div>
+    <div class="state-row">
+      <div class="state-name s-hold">Hold</div>
+      <div class="state-text">One layer is soft but not disqualifying. A brief gap, incomplete data, or missing KPI set. Tighten the inputs and re-score before approving spend.</div>
+    </div>
+    <div class="state-row">
+      <div class="state-name s-wait">Wait</div>
+      <div class="state-text">Pricing fails or both quality layers are below threshold. Not a media question yet. Return to strategy or renegotiate the rate before re-entering the scoring flow.</div>
+    </div>
+    <div class="state-row span2">
+      <div class="state-name s-toxic">Toxic</div>
+      <div class="state-text">High optimization, low authenticity. The buy scores well on the metrics the agency charges against — and poorly on the layer they have no incentive to measure. This is the structural conflict made visible. <strong>This is the verdict no agency compensation model will ever produce on its own.</strong></div>
+    </div>
+  </div>
+</section>
+
+<section id="receipts" class="slide">
+  <div class="slide-head"><span class="eb">The proof</span><span class="slide-num">05 / 06</span></div>
+  <h2>The lift is documented at flight close.</h2>
+  <div class="slide-body" style="max-width:740px">
+    <p>Every audit carries a number. Every number resolves at flight close against the KPI targets named at the time of the verdict. The figures below are illustrative of the calibration record the system builds over time — each closed audit logged against its verdict, outcomes visible to the brand. Calibration is falsifiable and improves with every audit added to the corpus. The holdco shows you the wins. Plumb shows you the wins, the misses, and the process breaches.</p>
+  </div>
+  <div class="stats-grid">
+    <div class="stat"><div class="stat-num">—</div><div class="stat-label">audits closed · illustrative</div></div>
+    <div class="stat"><div class="stat-num">71<span class="unit">%</span></div><div class="stat-label">commit hit rate · modeled</div></div>
+    <div class="stat"><div class="stat-num">+29<span class="unit">pp</span></div><div class="stat-label">lift over baseline · modeled</div></div>
+    <div class="stat"><div class="stat-num">—</div><div class="stat-label">saved by rejection · illustrative</div></div>
+  </div>
+</section>
+
+<section id="engagement" class="slide">
+  <div class="slide-head"><span class="eb">The start</span><span class="slide-num">06 / 06</span></div>
+  <div class="cta-block">
+    <h2>Run one audit against your next IO.</h2>
+    <div class="body">
+      <p>Plumb runs as a fixed-fee audit per buy. The first audit is on us. If the verdict does not change a buying decision, the engagement closes. If it does, the engagement scales to audit-as-a-service across the brand's full media plan — search, social, out-of-home, CTV, linear TV, radio, print, and the cross-channel coherence calls in between.</p>
+      <p>The framework is channel-agnostic. The conflict of interest is not. That asymmetry is the product.</p>
+    </div>
+    <a class="cta-btn" href="#scorer">Try the scorer →</a>
+  </div>
+</section>
+
+<section id="math" class="slide">
+  <div class="slide-head"><span class="eb">The methodology</span><span class="slide-num">07</span></div>
+  <h2>The scoring is probabilistic.<br>The math is explicit.</h2>
+  <div class="slide-body" style="max-width:740px">
+    <p>Plumb's scoring treats each metric as a signal with two properties: amplitude — how strong the signal is — and a confidence weight based on the quality of the data source behind it. The five metrics in each layer are weighted composites of those signals. The three layer scores are not averaged. They are compound gates: all three must clear their thresholds simultaneously for a COMMIT verdict to issue.</p>
+    <p>The probability language is borrowed from quantum amplitude math. In that framework, |ψ|² — magnitude squared — represents the actual measurable probability of an outcome, not merely the presence of a signal. A signal can be present and still produce a low probability outcome if its amplitude is weak or its confidence weight is low. Plumb applies that logic to media: the question is not whether a channel has reach, but what is the probability this specific buy produces the outcome the brand declared at brief, given every signal we can measure at the time of the verdict.</p>
+    <p>The weighting construct is explicit and published. Optimization metrics are sourced from third-party data and weighted at full confidence where attribution is closed-loop. Authenticity metrics carry lower automatic confidence on the soft cases — Cultural Truth and Moment Respect — and require human review before their weights are finalized. Pricing metrics are arithmetic once the brief fields are complete. The compound verdict is the AND of all three layer gates: a strong Optimization score does not override a failed Authenticity score. Each gate must clear independently.</p>
+  </div>
+  <div style="margin-top:32px; padding:24px 32px; background:var(--bg2); border-left:3px solid var(--bt); border-radius:0">
+    <div style="font-family:var(--mono); font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--bt); margin-bottom:10px">Scoring formula · plain language</div>
+    <div style="font-size:14px; line-height:1.8; color:var(--text2)">
+      Layer score = Σ (metric signal amplitude × source confidence weight) ÷ 5<br>
+      Verdict = f(Optimization gate × Authenticity gate) + Pricing sub-verdict<br>
+      Calibration = closed audit outcomes logged against verdict at flight close<br>
+      Lift = COMMIT hit rate vs. baseline hit rate across closed audit corpus
+    </div>
+  </div>
+</section>
+
+<section id="market" class="slide">
+  <div class="slide-head"><span class="eb">The market</span><span class="slide-num">08</span></div>
+  <h2>The infrastructure category<br>this sits inside.</h2>
+  <div class="three-col" style="margin-top:24px">
+    <div class="col-card">
+      <div class="label">Verification & Measurement</div>
+      <h3 style="font-size:22px">IAS · DoubleVerify</h3>
+      <div class="body">Both companies sit between buyers and inventory and score media quality. IAS went public at approximately $3.7B. DoubleVerify at approximately $4.5B. Both built defensible businesses on a single layer — brand safety and viewability. Plumb's Authenticity Layer covers broader judgment territory than either, extended across all channels rather than confined to digital.</div>
+    </div>
+    <div class="col-card accent">
+      <div class="label">Media Audit & Accountability</div>
+      <h3 style="font-size:22px">Ebiquity · ID Comms</h3>
+      <div class="body">Boutique media audit firms operating in the $50M–$300M revenue range. These are the firms brands hire when they no longer trust their agencies to self-report. Plumb is this service with a scoring engine, a falsification record, and a compound verdict framework behind it — applicable at the point of buying, not after the fact.</div>
+    </div>
+    <div class="col-card accent2">
+      <div class="label">Value by Stage</div>
+      <h3 style="font-size:22px">Framework → Scale</h3>
+      <div class="body">As a framework with tooling and no closed audit record: early acquisition range. With six months of real audits, a calibration corpus, and paying brand clients: $5M–$15M depending on buyer. Built to scale with real data integrations and a team — $50M–$200M, competing directly in the audit and measurement infrastructure category.</div>
+    </div>
+  </div>
+  <div style="margin-top:32px; padding:24px 32px; background:var(--bg2); border:0.5px solid var(--line); border-radius:4px">
+    <div style="font-family:var(--mono); font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--text3); margin-bottom:10px">The structural position</div>
+    <div style="font-size:15px; line-height:1.75; color:var(--text2); max-width:720px">The holding company model cannot build this. Their commercial incentive runs directly against an audit verdict system — they cannot issue TOXIC verdicts against their own inventory recommendations. Independent audit infrastructure requires independence from the buy. That is Plumb's structural position, and it is not replicable by an agency or a holdco regardless of investment.</div>
+  </div>
+</section>
+
+</main>
+
+<!-- ════ TOOLS DIVIDER ════ -->
+<div class="tools-intro">
+  <div class="eb-dk">The tools</div>
+  <h2>Below: the working artifacts.</h2>
+  <div class="body">Four functional views of the system. The scorer is interactive — adjust the fifteen metric sliders and watch the verdict update live across all three layers. The comparison, history, and workflow views are populated with sample data across multiple channels and categories.</div>
+</div>
+
+<!-- ════ TOOL 01: SCORER ════ -->
+<div class="tool-section" id="scorer">
+<div class="tool-inner">
+  <div class="section-label">
+    <span class="eb-tool">Tool 01 · the scorer</span>
+    <span class="mono">AUDIT · LIVE</span>
+  </div>
+
+  <div class="scorer-grid">
+    <div class="layer-card lc-opt">
+      <div class="layer-head">
+        <div><div class="layer-name">Optimization</div><div class="layer-sub">Distribution math</div></div>
+        <div class="layer-score" id="opt-score">75</div>
+      </div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">CPM efficiency</span><span class="metric-src">Geopath · platform rate cards</span></span><span class="metric-val" id="o1-v">75</span></div><input type="range" min="0" max="100" value="75" step="1" data-l="o" data-i="1"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Reach quality</span><span class="metric-src">MRI-Simmons · Scarborough</span></span><span class="metric-val" id="o2-v">82</span></div><input type="range" min="0" max="100" value="82" step="1" data-l="o" data-i="2"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Frequency fit</span><span class="metric-src">Dwell model · format spec</span></span><span class="metric-val" id="o3-v">72</span></div><input type="range" min="0" max="100" value="72" step="1" data-l="o" data-i="3"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Targeting precision</span><span class="metric-src">Audience zone data</span></span><span class="metric-val" id="o4-v">78</span></div><input type="range" min="0" max="100" value="78" step="1" data-l="o" data-i="4"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Attribution clarity</span><span class="metric-src">Measurement partner</span></span><span class="metric-val" id="o5-v">70</span></div><input type="range" min="0" max="100" value="70" step="1" data-l="o" data-i="5"/></div>
+    </div>
+
+    <div class="layer-card lc-auth">
+      <div class="layer-head">
+        <div><div class="layer-name" style="color:var(--dk-bt)">Authenticity</div><div class="layer-sub">Standing in the moment</div></div>
+        <div class="layer-score" id="auth-score">77</div>
+      </div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Context fit</span><span class="metric-src">Semantic match · placement DB</span></span><span class="metric-val" id="a1-v">78</span></div><input type="range" min="0" max="100" value="78" step="1" data-l="a" data-i="1"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Audience dignity</span><span class="metric-src">Creative rubric · brand voice</span></span><span class="metric-val" id="a2-v">80</span></div><input type="range" min="0" max="100" value="80" step="1" data-l="a" data-i="2"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Cultural truth</span><span class="metric-src">Social listening · BAV — human review</span></span><span class="metric-val" id="a3-v">72</span></div><input type="range" min="0" max="100" value="72" step="1" data-l="a" data-i="3"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Earned placement</span><span class="metric-src">Brand history · category affinity</span></span><span class="metric-val" id="a4-v">80</span></div><input type="range" min="0" max="100" value="80" step="1" data-l="a" data-i="4"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Moment respect</span><span class="metric-src">Audience state model · creative register</span></span><span class="metric-val" id="a5-v">76</span></div><input type="range" min="0" max="100" value="76" step="1" data-l="a" data-i="5"/></div>
+    </div>
+
+    <div class="layer-card lc-price">
+      <div class="layer-head">
+        <div><div class="layer-name" style="color:var(--dk-pr)">Pricing</div><div class="layer-sub">Capital math</div></div>
+        <div class="layer-score" id="price-score">78</div>
+      </div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Budget fit</span><span class="metric-src">Category benchmark · brand stage</span></span><span class="metric-val" id="p1-v">78</span></div><input type="range" min="0" max="100" value="78" step="1" data-l="p" data-i="1"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Cost per KPI</span><span class="metric-src">Named targets · flight math</span></span><span class="metric-val" id="p2-v">75</span></div><input type="range" min="0" max="100" value="75" step="1" data-l="p" data-i="2"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Scale threshold</span><span class="metric-src">Impact floor · diminishing return</span></span><span class="metric-val" id="p3-v">80</span></div><input type="range" min="0" max="100" value="80" step="1" data-l="p" data-i="3"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Payback window</span><span class="metric-src">Brand cycle · flight window</span></span><span class="metric-val" id="p4-v">76</span></div><input type="range" min="0" max="100" value="76" step="1" data-l="p" data-i="4"/></div>
+      <div class="metric"><div class="metric-label-row"><span><span class="metric-name">Reversibility cost</span><span class="metric-src">Unrecoverable spend mid-flight</span></span><span class="metric-val" id="p5-v">80</span></div><input type="range" min="0" max="100" value="80" step="1" data-l="p" data-i="5"/></div>
+    </div>
+  </div>
+
+  <div id="verdict" class="verdict" style="border-top-color:var(--dk-commit)">
+    <div class="verdict-head">
+      <div class="verdict-main">
+        <div class="verdict-eb">Verdict</div>
+        <div id="state-name" class="verdict-state" style="color:var(--dk-commit)">COMMIT</div>
+        <div id="state-tag" class="verdict-tag">All three layers earn the buy.</div>
+        <div id="state-reason" class="verdict-reason">Distribution math clears the floor and authenticity earns the moment. Pricing is sound against the named outcomes. Approve with a one-way door criterion tied to the first measurable KPI signal.</div>
+      </div>
+      <div class="verdict-side">
+        <div class="verdict-stat"><div class="l">Composite quality</div><div class="v" id="comp-q">opt 75 / auth 77</div></div>
+        <div class="verdict-stat"><div class="l">Pricing state</div><div class="v" id="comp-p" style="color:var(--dk-commit)">FAIR · 78</div></div>
+      </div>
+    </div>
+    <div class="verdict-action">
+      <span class="label">Recommended action</span>
+      <span class="value" id="action-value">Approve</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════ TOOL 02: COMPARE ════ -->
+<div class="tool-section" id="compare">
+<div class="tool-inner">
+  <div class="section-label">
+    <span class="eb-tool">Tool 02 · comparison</span>
+    <span class="mono">CMP · 00428</span>
+  </div>
+
+  <div style="background:var(--dk2);padding:18px 22px;border:0.5px solid var(--dk-line);margin-bottom:16px">
+    <div class="eb-sm" style="margin-bottom:10px">Shared context · three plans, same outcome target</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 24px;font-size:13px;line-height:1.5;color:var(--dk-text2)">
+      <div><span style="color:var(--dk-text3)">Brand</span><br><span style="font-weight:500;color:var(--dk-text)">Sample Bank</span></div>
+      <div><span style="color:var(--dk-text3)">Category</span><br><span style="font-weight:500;color:var(--dk-text)">Financial services</span></div>
+      <div><span style="color:var(--dk-text3)">Channel</span><br><span style="font-weight:500;color:var(--dk-text)">Out-of-home · place-based media</span></div>
+    </div>
+    <div style="margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dk-line);font-size:12px;color:var(--dk-text2)">
+      Measured against · <span class="t-mono">8.2M viewable imp · +6pp recall · 12K branch visits · top-3 SOV</span>
+    </div>
+  </div>
+
+  <div class="compare-grid">
+    <div class="v-card">
+      <div class="vlabel">Variant A · audit 28471</div>
+      <div class="vname">Saturation play</div>
+      <div class="vdesc">All-market premium saturation. High-reach placement mix, national creative with no market-level rooting.</div>
+      <div class="v-spend"><span class="l">Spend</span><span class="v">$1.2M</span></div>
+      <div class="v-bars">
+        <div class="v-bar"><span class="l">Opt</span><div class="t"><div class="f" style="width:82%;background:var(--dk-text2)"></div></div><span class="v">82</span></div>
+        <div class="v-bar"><span class="l">Auth</span><div class="t"><div class="f" style="width:38%;background:var(--dk-bt)"></div></div><span class="v">38</span></div>
+        <div class="v-bar"><span class="l">Price</span><div class="t"><div class="f" style="width:45%;background:var(--dk-pr)"></div></div><span class="v">45</span></div>
+      </div>
+      <div class="v-pills">
+        <span class="pill" style="background:var(--dk-toxic-bg);color:var(--dk-toxic)">toxic</span>
+        <span class="pill" style="background:var(--dk-consult-bg);color:var(--dk-consult)">stretched</span>
+      </div>
+      <div class="v-final"><strong style="color:var(--dk-toxic)">Reject.</strong> Efficient extraction at premium spend. The buy any comp-model holdco recommends.</div>
+    </div>
+
+    <div class="v-card rec">
+      <div class="vlabel">Variant B · audit 28472</div>
+      <div class="vname">Targeted context play</div>
+      <div class="vdesc">Market-specific creative matched to high-dwell, high-affinity placements across three hub markets.</div>
+      <div class="v-spend"><span class="l">Spend</span><span class="v">$580K</span></div>
+      <div class="v-bars">
+        <div class="v-bar"><span class="l">Opt</span><div class="t"><div class="f" style="width:75%;background:var(--dk-text2)"></div></div><span class="v">75</span></div>
+        <div class="v-bar"><span class="l">Auth</span><div class="t"><div class="f" style="width:78%;background:var(--dk-bt)"></div></div><span class="v">78</span></div>
+        <div class="v-bar"><span class="l">Price</span><div class="t"><div class="f" style="width:78%;background:var(--dk-pr)"></div></div><span class="v">78</span></div>
+      </div>
+      <div class="v-pills">
+        <span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">commit</span>
+        <span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">fair</span>
+      </div>
+      <div class="v-final"><strong style="color:var(--dk-commit)">Approve.</strong> Hits the targets at the right scale. The buy no holdco would surface unprompted.</div>
+    </div>
+
+    <div class="v-card">
+      <div class="vlabel">Variant C · audit 28473</div>
+      <div class="vname">Premium bespoke</div>
+      <div class="vdesc">Single-market premium installations. Highly crafted bespoke creative, under-scale for the named KPI target set.</div>
+      <div class="v-spend"><span class="l">Spend</span><span class="v">$940K</span></div>
+      <div class="v-bars">
+        <div class="v-bar"><span class="l">Opt</span><div class="t"><div class="f" style="width:58%;background:var(--dk-text2)"></div></div><span class="v">58</span></div>
+        <div class="v-bar"><span class="l">Auth</span><div class="t"><div class="f" style="width:88%;background:var(--dk-bt)"></div></div><span class="v">88</span></div>
+        <div class="v-bar"><span class="l">Price</span><div class="t"><div class="f" style="width:38%;background:var(--dk-pr)"></div></div><span class="v">38</span></div>
+      </div>
+      <div class="v-pills">
+        <span class="pill" style="background:var(--dk-consult-bg);color:var(--dk-consult)">consult</span>
+        <span class="pill" style="background:var(--dk-toxic-bg);color:var(--dk-toxic)">wrong</span>
+      </div>
+      <div class="v-final"><strong style="color:var(--dk-consult)">Renegotiate.</strong> Highest authenticity score in the set. Wrong scale for the named targets.</div>
+    </div>
+  </div>
+
+  <div class="recommend-box">
+    <div class="eb-tool" style="margin-bottom:10px">Plumb recommends</div>
+    <p>Variant B. The targeted context play earns COMMIT across all three layers at half the budget of A and 62% of C. Variant A reaches further but does so through efficient extraction — the audience pays for the inefficiency the brief did not price. Variant C is crafted work that does not reach far enough for its price tag. Approve B. Renegotiate C only if the bespoke creative is strategically mission-critical. Reject A under any compensation model.</p>
+  </div>
+</div>
+</div>
+
+<!-- ════ TOOL 03: HISTORY ════ -->
+<div class="tool-section" id="history">
+<div class="tool-inner">
+  <div class="section-label">
+    <span class="eb-tool">Tool 03 · historical view</span>
+    <span class="mono">PERIOD · 90 DAYS</span>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi"><div class="l">Audits closed</div><div class="v" style="font-size:24px; padding-top:8px; color:var(--dk-text3)">Sample data</div></div>
+    <div class="kpi"><div class="l">Commit hit rate</div><div class="v">71<span class="unit">%</span></div></div>
+    <div class="kpi"><div class="l">Lift vs baseline</div><div class="v green">+29<span class="unit">pp</span></div></div>
+    <div class="kpi"><div class="l">Saved by rejection</div><div class="v" style="font-size:24px; padding-top:8px; color:var(--dk-text3)">Illustrative</div></div>
+  </div>
+
+  <div class="risk-bar-wrap">
+    <div class="risk-bar-head">
+      <span class="eb-sm">Portfolio risk distribution</span>
+      <span class="mono">81% in-rail · target 80+</span>
+    </div>
+    <div class="risk-bar">
+      <div class="seg" style="width:81%;background:var(--dk-commit)"></div>
+      <div class="seg" style="width:13%;background:var(--dk-consult)"></div>
+      <div class="seg" style="width:6%;background:var(--dk-toxic)"></div>
+    </div>
+    <div class="risk-legend">
+      <span><span class="sw" style="background:var(--dk-commit)"></span>in-rail · 81%</span>
+      <span><span class="sw" style="background:var(--dk-consult)"></span>cautioned · 13%</span>
+      <span><span class="sw" style="background:var(--dk-toxic)"></span>breached · 6%</span>
+    </div>
+  </div>
+
+  <div class="eb-sm" style="margin-bottom:12px">Recent audits · risk side-rail · cross-channel</div>
+  <table class="dk-table">
+    <thead>
+      <tr><th class="row-rail"></th><th>Channel</th><th>Audit</th><th>Campaign</th><th>Verdict</th><th>Action</th><th>Outcome</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="row-rail" style="background:var(--dk-commit)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">OOH</span></td><td class="t-mono">28472</td><td><span class="t-name">Trust campaign Q3</span><span class="t-sub">Sample Bank · finserv</span></td><td><span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">commit · fair</span></td><td>approved</td><td class="t-mono" style="color:var(--dk-commit)">hit 4/4</td><td><span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">in-rail</span></td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-commit)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">CTV</span></td><td class="t-mono">28466</td><td><span class="t-name">Addressable launch Q2</span><span class="t-sub">Regional Auto · auto</span></td><td><span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">commit · fair</span></td><td>approved</td><td class="t-mono" style="color:var(--dk-text3)">miss 2/4</td><td><span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">in-rail</span></td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-consult)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">SRCH</span></td><td class="t-mono">28455</td><td><span class="t-name">Awareness push Q1</span><span class="t-sub">Healthcare Co · health</span></td><td><span class="pill" style="background:var(--dk-consult-bg);color:var(--dk-consult)">consult · fair</span></td><td>escalated, approved</td><td class="t-mono" style="color:var(--dk-commit)">hit 3/4</td><td><span class="pill" style="background:var(--dk-consult-bg);color:var(--dk-consult)">cautioned</span></td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-toxic)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">SOCL</span></td><td class="t-mono">28442</td><td><span class="t-name">Product launch push</span><span class="t-sub">Tech brand · tech</span></td><td><span class="pill" style="background:var(--dk-consult-bg);color:var(--dk-consult)">consult · stretched</span></td><td>approved · no escalation</td><td class="t-mono" style="color:var(--dk-toxic)">miss 1/4</td><td><span class="pill" style="background:var(--dk-toxic-bg);color:var(--dk-toxic)">breached</span></td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-commit)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">TV</span></td><td class="t-mono">28438</td><td><span class="t-name">National retail · upfront</span><span class="t-sub">CPG brand · cpg</span></td><td><span class="pill" style="background:var(--dk-toxic-bg);color:var(--dk-toxic)">toxic · wrong</span></td><td>rejected</td><td class="t-mono" style="color:var(--dk-text3)">saved $480K</td><td><span class="pill" style="background:var(--dk-commit-bg);color:var(--dk-commit)">in-rail</span></td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-toxic)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">MIX</span></td><td class="t-mono">28429</td><td><span class="t-name">Cross-channel activation</span><span class="t-sub">Luxury brand · luxury</span></td><td><span class="pill" style="background:var(--dk-hold-bg);color:var(--dk-hold)">hold · stretched</span></td><td>overridden · approved</td><td class="t-mono" style="color:var(--dk-toxic)">miss 0/4</td><td><span class="pill" style="background:var(--dk-toxic-bg);color:var(--dk-toxic)">breached</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="consult-callout">
+    <div class="eb-c">Consult subtotal · escalation lift</div>
+    <p>12 CONSULT audits closed in period. 9 properly escalated and approved hit on 7 of 9 (<span class="t-mono" style="color:var(--dk-text)">78%</span>). 3 approved without documented escalation hit on 1 of 3 (<span class="t-mono" style="color:var(--dk-text)">33%</span>). The escalation procedure adds <span class="t-mono" style="color:var(--dk-text)">+45 pp</span> to outcome hit rate on the soft cases. The three breached audits are shown publicly. Process review initiated with the issuing buyers.</p>
+  </div>
+</div>
+</div>
+
+<!-- ════ TOOL 04: WORKFLOW ════ -->
+<div class="tool-section" id="workflow">
+<div class="tool-inner">
+  <div class="section-label">
+    <span class="eb-tool">Tool 04 · escalation workflow</span>
+    <span class="mono">LIVE QUEUE</span>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi"><div class="l">Pending review</div><div class="v">6</div></div>
+    <div class="kpi"><div class="l">Overdue</div><div class="v red">1</div></div>
+    <div class="kpi"><div class="l">Avg response</div><div class="v">4.2<span class="unit">h</span></div></div>
+    <div class="kpi"><div class="l">Procedure lift</div><div class="v green">+45<span class="unit">pp</span></div></div>
+  </div>
+
+  <div class="eb-sm" style="margin-bottom:12px">Pending · sorted by urgency · cross-media routing</div>
+  <table class="dk-table">
+    <thead>
+      <tr><th class="row-rail"></th><th>Channel</th><th>Audit</th><th>Campaign</th><th>Escalation trigger</th><th>Window</th><th>Reviewer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="row-rail" style="background:var(--dk-toxic)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">SRCH</span></td><td class="t-mono">28491</td><td><span class="t-name">Q2 acquisition push</span><span class="t-sub">Auto dealership group · auto</span></td><td>Cultural truth — generic unearned claim</td><td class="t-mono" style="color:var(--dk-toxic);font-weight:500">1h over</td><td class="t-sub">Search SME</td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-consult)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">SOCL</span></td><td class="t-mono">28489</td><td><span class="t-name">Influencer activation</span><span class="t-sub">DTC beauty · cpg</span></td><td>Earned placement — creator has no category standing</td><td class="t-mono" style="color:var(--dk-consult);font-weight:500">4h</td><td class="t-sub">Social SME</td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-consult)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">CTV</span></td><td class="t-mono">28487</td><td><span class="t-name">Addressable launch</span><span class="t-sub">Sample Bank · finserv</span></td><td>Moment respect — frequency cap tension</td><td class="t-mono" style="color:var(--dk-consult);font-weight:500">8h</td><td class="t-sub">CTV SME</td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-consult)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">MIX</span></td><td class="t-mono">28482</td><td><span class="t-name">Cross-channel push</span><span class="t-sub">Fashion brand · luxury</span></td><td>Channel coherence — OOH vs social brand signals</td><td class="t-mono" style="color:var(--dk-consult);font-weight:500">8h</td><td class="t-sub">Senior strat</td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-commit)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">OOH</span></td><td class="t-mono">28486</td><td><span class="t-name">Awareness push Q3</span><span class="t-sub">Healthcare Co · health</span></td><td>Attribution clarity soft, authenticity strong</td><td class="t-mono">18h</td><td class="t-sub">OOH SME</td></tr>
+      <tr><td class="row-rail" style="background:var(--dk-commit)"></td><td><span class="pill" style="background:var(--dk3);color:var(--dk-text2);border:0.5px solid var(--dk-line)">TV</span></td><td class="t-mono">28484</td><td><span class="t-name">Upfront commitment</span><span class="t-sub">National retailer · retail</span></td><td>Pricing stretched — upfront premium math</td><td class="t-mono">2d</td><td class="t-sub">TV SME</td></tr>
+    </tbody>
+  </table>
+
+  <div class="review-pane">
+    <div class="review-head">
+      <span class="dot"></span>
+      <span class="eb-sm">Reviewing now · audit 28491 · search · overdue</span>
+    </div>
+    <div class="review-grid">
+      <div class="review-col">
+        <h4>Q2 acquisition push</h4>
+        <div class="sub">Auto dealership group · regional market · $180K · target CPA $48</div>
+        <div class="review-scores">
+          <div class="s"><div class="l">Opt</div><div class="v">72</div></div>
+          <div class="s"><div class="l">Auth</div><div class="v" style="color:var(--dk-consult)">48</div></div>
+          <div class="s"><div class="l">Price</div><div class="v">62</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <span class="pill" style="background:var(--dk-consult-bg);color:var(--dk-consult)">consult · fair</span>
+        </div>
+        <div class="review-trigger"><strong>Trigger ·</strong> Cultural truth scored 48. Rubric flagged a generic universal claim in the ad copy — "best service in town" — against a brand with no documented category standing for the assertion. Optimization clears at 72 and pricing is fair at 62. Creative revision required before clearance can be issued.</div>
+      </div>
+      <div class="review-col">
+        <div class="review-meta">
+          <span class="who">Sarah K · Search SME</span>
+          <span class="timer">in 4m 22s</span>
+        </div>
+        <div class="eb-sm" style="margin-bottom:6px">Override reasoning</div>
+        <textarea rows="5">Approving with reworked creative. Replacing the generic universal claim with a verifiable, documented local signal the brand has standing to make. Re-running Plumb on revised copy is expected to clear authenticity at 72+. Stamping with revised IO.</textarea>
+        <div class="review-buttons">
+          <button class="btn-primary">Approve with override</button>
+          <button class="btn-secondary">Reject</button>
+        </div>
+        <div class="review-stamp">Stamps to audit · SK-PLB-28491 · escalation trail attached · risk → cautioned</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<footer>
+  <div class="mark">
+    <svg width="14" height="22" viewBox="0 0 14 22" fill="none" style="display:inline-block">
+      <line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="1"/>
+      <circle cx="7" cy="18" r="4" fill="currentColor"/>
+    </svg>
+  </div>
+  AC Ads · Plumb · v3 · 2026
+</footer>
+
+<script>
+(function(){
+  const S={
+    COMMIT:{c:'var(--dk-commit)',bc:'var(--dk-commit)',tag:'All three layers earn the buy.',
+      reason:'Distribution math clears the floor and authenticity earns the moment. Pricing is sound against the named outcomes. Approve with a one-way door criterion tied to the first measurable KPI signal.'},
+    CONSULT:{c:'var(--dk-consult)',bc:'var(--dk-consult)',tag:'Human judgment required.',
+      reason:'One layer requires judgment the scoring model cannot supply — typically cultural truth or earned placement. Escalate to a named senior strategist. Document override reasoning before IO. Undocumented escalations hit at 33%; documented at 78%.'},
+    HOLD:{c:'var(--dk-hold)',bc:'var(--dk-hold)',tag:'One layer needs attention.',
+      reason:'Neither layer is loud enough to commit and neither is quiet enough to kill. Tighten the brief, complete the missing inputs, or renegotiate the placement. Re-score before approving spend.'},
+    WAIT:{c:'var(--dk-wait)',bc:'rgba(240,236,228,0.3)',tag:'Not ready to score.',
+      reason:'Pricing fails or both quality layers are below threshold. This is not a media question yet. Return upstream to strategy or renegotiate the rate before re-entering the scoring flow.'},
+    TOXIC:{c:'var(--dk-toxic)',bc:'var(--dk-toxic)',tag:'Efficient extraction. The holdco failure mode.',
+      reason:'High optimization with low authenticity is value-destroying. The buy scores well on the metrics the holdco charges against and poorly on the layer they have no incentive to measure. Reject. Document the reason.'}
+  };
+  function avg(p){let s=0;for(let i=1;i<=5;i++){s+=+document.querySelector('input[data-l="'+p+'"][data-i="'+i+'"]').value;}return Math.round(s/5);}
+  function nerva(o,a){if(o>=65&&a<40)return'TOXIC';if(o>=65&&a>=65)return'COMMIT';if(a>=65&&o<65)return'CONSULT';if(o<40&&a<40)return'WAIT';return'HOLD';}
+  function price(p){if(p>=65)return{n:'FAIR',c:'var(--dk-commit)'};if(p<40)return{n:'WRONG',c:'var(--dk-toxic)'};return{n:'STRETCHED',c:'var(--dk-consult)'};}
+  function action(k,pr){if(k==='TOXIC')return'Reject';if(k==='WAIT')return'Defer';if(k==='HOLD')return'Revise brief';if(k==='CONSULT')return'Escalate';if(pr.n==='FAIR')return'Approve';if(pr.n==='STRETCHED')return'Renegotiate';return'Hold on price';}
+  function render(){
+    const o=avg('o'),a=avg('a'),p=avg('p');
+    document.getElementById('opt-score').textContent=o;
+    document.getElementById('auth-score').textContent=a;
+    document.getElementById('price-score').textContent=p;
+    const k=nerva(o,a),st=S[k],pr=price(p);
+    document.getElementById('state-name').textContent=k;
+    document.getElementById('state-name').style.color=st.c;
+    document.getElementById('state-tag').textContent=st.tag;
+    document.getElementById('state-reason').textContent=st.reason;
+    document.getElementById('comp-q').textContent='opt '+o+' / auth '+a;
+    document.getElementById('comp-p').textContent=pr.n+' · '+p;
+    document.getElementById('comp-p').style.color=pr.c;
+    document.getElementById('action-value').textContent=action(k,pr);
+    document.getElementById('verdict').style.borderTopColor=st.bc;
+  }
+  document.querySelectorAll('input[type=range][data-l]').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      document.getElementById(e.target.dataset.l+e.target.dataset.i+'-v').textContent=e.target.value;
+      render();
+    });
+  });
+  render();
+  const navLinks=document.querySelectorAll('.nav-links a[data-nav]');
+  const pitchIds=new Set(['cover','problem','comp','framework','kernel','receipts','engagement','math','market']);
+  const toolIds=['scorer','compare','history','workflow'];
+  const allSections=[...Array.from(pitchIds),... toolIds].map(id=>document.getElementById(id)).filter(Boolean);
+  function updateNav(){
+    let active='cover';
+    const y=window.scrollY+80;
+    allSections.forEach(s=>{if(s&&s.offsetTop<=y)active=s.id;});
+    navLinks.forEach(a=>{
+      const h=a.getAttribute('href').slice(1);
+      const match=(h===active)||(h==='cover'&&pitchIds.has(active));
+      a.classList.toggle('active',match);
+    });
+  }
+  window.addEventListener('scroll',updateNav,{passive:true});
+  updateNav();
+})();
+</script>
+</body>
+</html>
