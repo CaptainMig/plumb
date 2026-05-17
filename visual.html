@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plumb · Audit Analytics View</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#13110e;--bg2:#1d1a16;--bg3:#26231e;--bg4:#2e2a24;
+  --ink:#f0ece4;--ink2:rgba(240,236,228,0.65);--ink3:rgba(240,236,228,0.32);--ink4:rgba(240,236,228,0.12);
+  --line:rgba(255,255,255,0.07);--line2:rgba(255,255,255,0.04);
+  --teal:#5aabb0;--teal-dim:rgba(90,171,176,0.15);
+  --gold:#c8971f;--gold-dim:rgba(200,151,31,0.15);
+  --price:#a07840;--price-dim:rgba(160,120,64,0.15);
+  --commit:#6fd49a;--commit-bg:rgba(111,212,154,0.12);
+  --consult:#c5a0f0;--consult-bg:rgba(197,160,240,0.12);
+  --hold:#8bbef0;--hold-bg:rgba(139,190,240,0.12);
+  --toxic:#f08080;--toxic-bg:rgba(240,128,128,0.12);
+  --wait:rgba(240,236,228,0.4);
+  --ff:'IBM Plex Sans',system-ui,sans-serif;
+  --display:'Fraunces',Georgia,serif;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--ff);font-weight:300;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* ── HEADER ── */
+.header{height:52px;background:var(--bg2);border-bottom:0.5px solid var(--line);display:flex;align-items:center;padding:0 32px;gap:16px;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:400;font-size:18px;color:var(--ink)}
+.brand svg{color:var(--teal)}
+.header-sep{width:0.5px;height:20px;background:var(--line)}
+.audit-id{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:0.08em}
+.view-toggle{margin-left:auto;display:flex;gap:2px}
+.vt-btn{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;background:transparent;border:0.5px solid var(--line);color:var(--ink3);cursor:pointer;transition:all 0.15s}
+.vt-btn.active{background:var(--teal-dim);color:var(--teal);border-color:rgba(90,171,176,0.3)}
+.vt-btn:hover:not(.active){color:var(--ink2)}
+
+/* ── LAYOUT ── */
+.page{max-width:1280px;margin:0 auto;padding:24px 32px 48px}
+.row{display:grid;gap:12px;margin-bottom:12px}
+.row-4{grid-template-columns:1fr 1fr 1fr 1.2fr}
+.row-2{grid-template-columns:1fr 1fr}
+.row-3{grid-template-columns:1fr 1fr 1fr}
+.row-1{grid-template-columns:1fr}
+
+/* ── CARDS ── */
+.card{background:var(--bg2);border:0.5px solid var(--line);border-radius:3px;overflow:hidden}
+.card-head{padding:12px 16px;border-bottom:0.5px solid var(--line);display:flex;align-items:baseline;justify-content:space-between}
+.card-label{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3)}
+.card-sub{font-family:var(--mono);font-size:9px;color:var(--ink4);letter-spacing:0.06em}
+.card-body{padding:16px}
+
+/* ── GAUGE ── */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:12px 16px 8px}
+.gauge-svg{display:block;overflow:visible}
+.gauge-score{font-family:var(--display);font-weight:400;font-size:36px;letter-spacing:-0.02em;line-height:1;margin-top:4px}
+.gauge-label{font-size:10px;color:var(--ink3);margin-top:2px;text-align:center}
+.gauge-bar-row{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:0 16px 12px;border-top:0.5px solid var(--line);margin-top:8px}
+.gbr-item{display:flex;flex-direction:column;gap:3px}
+.gbr-name{font-family:var(--mono);font-size:8px;color:var(--ink3);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gbr-track{height:3px;background:var(--bg3);border-radius:1.5px;overflow:hidden}
+.gbr-fill{height:100%;border-radius:1.5px;transition:width 0.6s cubic-bezier(0.16,1,0.3,1)}
+.gbr-val{font-family:var(--mono);font-size:8px;font-weight:500}
+
+/* ── VERDICT CARD ── */
+.verdict-card{display:flex;flex-direction:column;padding:20px}
+.vc-label{font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px}
+.vc-state{font-family:var(--display);font-weight:400;font-size:44px;letter-spacing:-0.02em;line-height:1;margin-bottom:4px;transition:color 0.3s}
+.vc-tag{font-family:var(--display);font-style:italic;font-weight:300;font-size:14px;color:var(--ink2);margin-bottom:12px}
+.vc-reason{font-size:11.5px;color:var(--ink3);line-height:1.65;flex:1}
+.vc-scores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:12px}
+.vc-score-cell{background:var(--bg3);padding:8px 10px;border-radius:2px}
+.vc-score-l{font-family:var(--mono);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:3px}
+.vc-score-v{font-family:var(--mono);font-size:16px;font-weight:500}
+.vc-action-row{margin-top:10px;display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--line)}
+.vc-al{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3)}
+.vc-av{font-family:var(--display);font-size:18px;letter-spacing:0.01em}
+
+/* ── PROBABILITY BAND ── */
+.prob-band{padding:16px}
+.pb-track{position:relative;height:32px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:10px}
+.pb-segment{position:absolute;height:100%;top:0;opacity:0.18}
+.pb-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);z-index:2;transform:translateX(-50%);transition:left 0.5s cubic-bezier(0.16,1,0.3,1)}
+.pb-marker::after{content:'';position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--ink)}
+.pb-labels{display:flex;justify-content:space-between}
+.pb-label{font-family:var(--mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase}
+.pb-threshold{position:absolute;top:0;bottom:0;width:0.5px;background:rgba(255,255,255,0.15);z-index:1}
+.pb-th-label{position:absolute;top:50%;transform:translateY(-50%) translateX(-50%);font-family:var(--mono);font-size:7px;color:rgba(255,255,255,0.2);letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap}
+
+/* ── RADAR ── */
+.radar-wrap{display:flex;justify-content:center;padding:8px 0 4px}
+
+/* ── FOREST PLOT ── */
+.forest-wrap{padding:8px 16px}
+.forest-header{display:grid;grid-template-columns:120px 1fr 32px;gap:8px;align-items:center;padding-bottom:6px;border-bottom:0.5px solid var(--line);margin-bottom:4px}
+.fh-label{font-family:var(--mono);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3)}
+.forest-row{display:grid;grid-template-columns:120px 1fr 32px;gap:8px;align-items:center;padding:4px 0;border-bottom:0.5px solid var(--line2)}
+.fr-name{font-size:10.5px;color:var(--ink2)}
+.fr-layer{font-family:var(--mono);font-size:7px;color:var(--ink3);letter-spacing:0.06em}
+.fr-track{position:relative;height:20px;background:transparent}
+.fr-bg{position:absolute;top:9px;height:2px;background:var(--bg3);width:100%;border-radius:1px}
+.fr-ci{position:absolute;top:7px;height:6px;border-radius:1px;opacity:0.35;transition:all 0.5s}
+.fr-dot{position:absolute;width:8px;height:8px;border-radius:50%;top:6px;transform:translateX(-50%);z-index:2;transition:left 0.5s cubic-bezier(0.16,1,0.3,1)}
+.fr-tick-lo{position:absolute;width:1px;height:12px;top:4px;background:currentColor;opacity:0.35;transform:translateX(-50%);transition:left 0.5s}
+.fr-tick-hi{position:absolute;width:1px;height:12px;top:4px;background:currentColor;opacity:0.35;transform:translateX(-50%);transition:left 0.5s}
+.fr-val{font-family:var(--mono);font-size:10.5px;font-weight:500;text-align:right}
+.fr-badge{font-family:var(--mono);font-size:7px;letter-spacing:0.06em;padding:1px 4px;border-radius:2px;text-transform:uppercase}
+.fb-auto{background:rgba(111,212,154,0.12);color:#6fd49a}
+.fb-semi{background:rgba(230,184,74,0.12);color:#e6b84a}
+.fb-human{background:rgba(197,160,240,0.12);color:#c5a0f0}
+
+/* ── SIGNAL BARS ── */
+.signal-grid{padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.sig-row{display:grid;grid-template-columns:148px 1fr 36px;gap:12px;align-items:center}
+.sig-name{font-size:11px;color:var(--ink2)}
+.sig-layer-dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:5px;flex-shrink:0;vertical-align:middle}
+.sig-track{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative}
+.sig-fill{height:100%;border-radius:4px;transition:width 0.6s cubic-bezier(0.16,1,0.3,1);position:relative}
+.sig-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.4)}
+.sig-val{font-family:var(--mono);font-size:11px;font-weight:500;text-align:right}
+.sig-group-label{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);padding:6px 0 2px;border-top:0.5px solid var(--line);grid-column:1/-1}
+.sig-group-label:first-child{border-top:none;padding-top:0}
+
+/* ── CALIBRATION ── */
+.calib-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:12px 16px}
+.calib-col{display:flex;flex-direction:column;gap:4px}
+.calib-state{font-family:var(--mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:2px}
+.calib-bar-wrap{height:60px;display:flex;align-items:flex-end;background:var(--bg3);border-radius:2px;overflow:hidden;padding:0 6px}
+.calib-bar{width:100%;border-radius:2px 2px 0 0;transition:height 0.6s cubic-bezier(0.16,1,0.3,1)}
+.calib-pct{font-family:var(--mono);font-size:9px;color:var(--ink3)}
+.calib-n{font-size:10px;color:var(--ink3)}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <svg width="11" height="18" viewBox="0 0 11 18" fill="none">
+      <line x1="5.5" y1="0" x2="5.5" y2="11" stroke="currentColor" stroke-width="1"/>
+      <circle cx="5.5" cy="15" r="3.5" fill="currentColor"/>
+    </svg>
+    Plumb
+  </div>
+  <div class="header-sep"></div>
+  <div class="audit-id" id="audit-id-display">PLB-2026-0048 · Financial Services · OOH Hub Market</div>
+  <div class="view-toggle">
+    <button class="vt-btn" onclick="window.location='index.html'">Scorer</button>
+    <button class="vt-btn active">Analytics</button>
+    <button class="vt-btn" onclick="window.location='pipeline.html'">Pipeline</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ROW 1: GAUGES + VERDICT -->
+  <div class="row row-4">
+
+    <!-- OPT GAUGE -->
+    <div class="card" id="card-opt">
+      <div class="card-head" style="border-top:2px solid var(--teal)">
+        <span class="card-label" style="color:var(--teal)">Optimization</span>
+        <span class="card-sub">Distribution math</span>
+      </div>
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" width="160" height="100" viewBox="0 0 160 100" id="svg-opt"></svg>
+        <div class="gauge-score" id="gscore-opt" style="color:var(--teal)">68</div>
+        <div class="gauge-label">of 100 · 5 metrics</div>
+      </div>
+      <div class="gauge-bar-row" id="gbr-opt"></div>
+    </div>
+
+    <!-- AUTH GAUGE -->
+    <div class="card" id="card-auth">
+      <div class="card-head" style="border-top:2px solid var(--gold)">
+        <span class="card-label" style="color:var(--gold)">Authenticity</span>
+        <span class="card-sub">Standing in moment</span>
+      </div>
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" width="160" height="100" viewBox="0 0 160 100" id="svg-auth"></svg>
+        <div class="gauge-score" id="gscore-auth" style="color:var(--gold)">63</div>
+        <div class="gauge-label">of 100 · 5 metrics</div>
+      </div>
+      <div class="gauge-bar-row" id="gbr-auth"></div>
+    </div>
+
+    <!-- PRICE GAUGE -->
+    <div class="card" id="card-price">
+      <div class="card-head" style="border-top:2px solid var(--price)">
+        <span class="card-label" style="color:var(--price)">Pricing</span>
+        <span class="card-sub">Capital math</span>
+      </div>
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" width="160" height="100" viewBox="0 0 160 100" id="svg-price"></svg>
+        <div class="gauge-score" id="gscore-price" style="color:var(--price)">73</div>
+        <div class="gauge-label">FAIR · 5 metrics</div>
+      </div>
+      <div class="gauge-bar-row" id="gbr-price"></div>
+    </div>
+
+    <!-- VERDICT -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-label">Live Verdict</span>
+        <span class="card-sub" id="vcard-time">—</span>
+      </div>
+      <div class="verdict-card">
+        <div class="vc-label">Verdict</div>
+        <div class="vc-state" id="vc-state" style="color:var(--hold)">HOLD</div>
+        <div class="vc-tag" id="vc-tag">One layer needs attention.</div>
+        <div class="vc-reason" id="vc-reason">Neither layer is loud enough to commit and neither is quiet enough to kill. Tighten the brief, complete the missing inputs, or renegotiate the placement. Re-score before approving spend.</div>
+        <div class="vc-scores">
+          <div class="vc-score-cell"><div class="vc-score-l">Opt</div><div class="vc-score-v" id="vcs-opt" style="color:var(--teal)">68</div></div>
+          <div class="vc-score-cell"><div class="vc-score-l">Auth</div><div class="vc-score-v" id="vcs-auth" style="color:var(--gold)">63</div></div>
+          <div class="vc-score-cell"><div class="vc-score-l">Price</div><div class="vc-score-v" id="vcs-price" style="color:var(--price)">73</div></div>
+        </div>
+        <div class="vc-action-row">
+          <span class="vc-al">Action</span>
+          <span class="vc-av" id="vc-action" style="color:var(--hold)">Revise brief</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end row-4 -->
+
+  <!-- PROBABILITY BAND -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-head">
+      <span class="card-label">Verdict Probability Band · Composite Quality Position</span>
+      <span class="card-sub">Optimization × Authenticity compound gate · threshold lines shown</span>
+    </div>
+    <div class="prob-band">
+      <div class="pb-track" id="pb-track">
+        <div class="pb-segment" style="left:0;width:20%;background:var(--toxic)"></div>
+        <div class="pb-segment" style="left:20%;width:15%;background:var(--wait)"></div>
+        <div class="pb-segment" style="left:35%;width:20%;background:var(--hold)"></div>
+        <div class="pb-segment" style="left:55%;width:15%;background:var(--consult)"></div>
+        <div class="pb-segment" style="left:70%;width:30%;background:var(--commit)"></div>
+        <!-- Threshold lines -->
+        <div class="pb-threshold" style="left:35%"><span class="pb-th-label" style="top:8px;transform:translateX(-50%)">Auth 40</span></div>
+        <div class="pb-threshold" style="left:65%"><span class="pb-th-label" style="top:8px;transform:translateX(-50%)">Auth 65</span></div>
+        <div class="pb-marker" id="pb-marker" style="left:58%"></div>
+      </div>
+      <div class="pb-labels">
+        <span class="pb-label" style="color:var(--toxic)">Toxic</span>
+        <span class="pb-label" style="color:var(--wait)">Wait</span>
+        <span class="pb-label" style="color:var(--hold)">Hold</span>
+        <span class="pb-label" style="color:var(--consult)">Consult</span>
+        <span class="pb-label" style="color:var(--commit)">Commit</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: RADAR + FOREST -->
+  <div class="row row-2">
+
+    <!-- RADAR -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-label">Signal Radar · All 15 Metrics</span>
+        <span class="card-sub">Amplitude by metric · three layers overlaid</span>
+      </div>
+      <div class="radar-wrap">
+        <svg id="radar-svg" width="320" height="300" viewBox="0 0 320 300"></svg>
+      </div>
+    </div>
+
+    <!-- FOREST PLOT -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-label">Forest Plot · Confidence Intervals</span>
+        <span class="card-sub">Point estimate · CI width by source quality · Auto ±8 · Semi ±15 · Human ±25</span>
+      </div>
+      <div class="forest-wrap">
+        <div class="forest-header">
+          <span class="fh-label">Metric</span>
+          <span class="fh-label">Score + CI range</span>
+          <span class="fh-label" style="text-align:right">Score</span>
+        </div>
+        <div id="forest-rows"></div>
+      </div>
+    </div>
+
+  </div><!-- end row-2 -->
+
+  <!-- ROW 3: SIGNAL BARS -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-head">
+      <span class="card-label">Signal Density · All Metrics by Layer</span>
+      <span class="card-sub">Weighted amplitude — threshold at 65 for gate clearance</span>
+    </div>
+    <div style="padding:0 16px 4px;display:flex;gap:24px;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--ink3)"><div style="width:18px;height:3px;background:var(--bg3);border-radius:2px;position:relative"><div style="position:absolute;left:0;top:0;height:3px;width:100%;background:linear-gradient(90deg,transparent 64%,rgba(255,255,255,0.1) 65%,transparent 65%)"></div></div>Threshold 65</div>
+    </div>
+    <div class="signal-grid" id="signal-grid"></div>
+    <!-- Threshold line overlay -->
+    <div style="position:relative;padding:0 16px;height:0;overflow:visible">
+      <div id="threshold-line" style="position:absolute;top:0;width:0.5px;height:0;background:rgba(255,255,255,0.15);pointer-events:none"></div>
+    </div>
+  </div>
+
+  <!-- ROW 4: CALIBRATION MODEL -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-label">Calibration Model · Verdict State Hit Rates</span>
+      <span class="card-sub">Illustrative · based on compound scoring construct · updates at flight close</span>
+    </div>
+    <div class="calib-grid">
+      <div class="calib-col">
+        <div class="calib-state" style="color:var(--commit)">Commit</div>
+        <div class="calib-bar-wrap"><div class="calib-bar" style="background:var(--commit);height:71%"></div></div>
+        <div class="calib-pct">71% hit rate</div>
+        <div class="calib-n">modeled</div>
+      </div>
+      <div class="calib-col">
+        <div class="calib-state" style="color:var(--consult)">Consult + esc.</div>
+        <div class="calib-bar-wrap"><div class="calib-bar" style="background:var(--consult);height:78%"></div></div>
+        <div class="calib-pct">78% hit rate</div>
+        <div class="calib-n">escalated only</div>
+      </div>
+      <div class="calib-col">
+        <div class="calib-state" style="color:var(--consult);opacity:0.5">Consult — no esc</div>
+        <div class="calib-bar-wrap"><div class="calib-bar" style="background:var(--consult);opacity:0.35;height:33%"></div></div>
+        <div class="calib-pct" style="opacity:0.5">33% hit rate</div>
+        <div class="calib-n">no escalation</div>
+      </div>
+      <div class="calib-col">
+        <div class="calib-state" style="color:var(--hold)">Hold</div>
+        <div class="calib-bar-wrap"><div class="calib-bar" style="background:var(--hold);height:58%"></div></div>
+        <div class="calib-pct">58% hit rate</div>
+        <div class="calib-n">modeled</div>
+      </div>
+      <div class="calib-col">
+        <div class="calib-state" style="color:var(--toxic)">Toxic reject</div>
+        <div class="calib-bar-wrap"><div class="calib-bar" style="background:var(--toxic);height:5%"></div></div>
+        <div class="calib-pct">~0% est.</div>
+        <div class="calib-n">post-flight</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<script>
+// ── DATA ── pre-loaded from screenshot values
+const DATA = {
+  opt: [
+    {name:'CPM efficiency',  short:'CPM',    val:75, mode:'auto'},
+    {name:'Reach quality',   short:'Reach',  val:82, mode:'auto'},
+    {name:'Frequency fit',   short:'Freq',   val:72, mode:'auto'},
+    {name:'Targeting prec.', short:'Target', val:49, mode:'auto'},
+    {name:'Attribution',     short:'Attr',   val:62, mode:'semi'},
+  ],
+  auth: [
+    {name:'Context fit',     short:'Context',val:78, mode:'auto'},
+    {name:'Audience dignity',short:'Dignity',val:30, mode:'auto'},
+    {name:'Cultural truth',  short:'Culture',val:75, mode:'human'},
+    {name:'Earned placement',short:'Earned', val:80, mode:'auto'},
+    {name:'Moment respect',  short:'Moment', val:51, mode:'human'},
+  ],
+  price: [
+    {name:'Budget fit',      short:'Budget', val:78, mode:'auto'},
+    {name:'Cost per KPI',    short:'CpKPI',  val:75, mode:'auto'},
+    {name:'Scale threshold', short:'Scale',  val:46, mode:'auto'},
+    {name:'Payback window',  short:'Payback',val:88, mode:'auto'},
+    {name:'Reversibility',   short:'Rev.',   val:80, mode:'auto'},
+  ]
+};
+
+const COLORS = {opt:'#5aabb0', auth:'#c8971f', price:'#a07840'};
+const CI_WIDTH = {auto:8, semi:15, human:25};
+
+const VERDICT_DATA = {
+  COMMIT:{c:'var(--commit)',tag:'All three layers earn the buy.',reason:'Distribution math clears the floor, authenticity earns the moment, pricing is sound. Approve with a named one-way door criterion.',action:'Approve'},
+  CONSULT:{c:'var(--consult)',tag:'Human judgment required.',reason:'One layer requires judgment the model cannot supply. Escalate to a named senior strategist. Document override reasoning before IO.',action:'Escalate'},
+  HOLD:{c:'var(--hold)',tag:'One layer needs attention.',reason:'Neither layer is loud enough to commit and neither is quiet enough to kill. Tighten the brief, complete the missing inputs, or renegotiate the placement. Re-score before approving spend.',action:'Revise brief'},
+  WAIT:{c:'var(--wait)',tag:'Not ready to score.',reason:'Pricing fails or both quality layers below threshold. Return upstream to strategy or renegotiate the rate.',action:'Defer'},
+  TOXIC:{c:'var(--toxic)',tag:'Efficient extraction. The agency failure mode.',reason:'High optimization, low authenticity. Scores well on the metrics the agency charges against, poorly on the layer they have no incentive to measure. Reject.',action:'Reject'}
+};
+
+function avg(arr){ return Math.round(arr.reduce((s,m)=>s+m.val,0)/arr.length); }
+
+function classifyNerva(o,a){
+  if(o>=65&&a<40) return 'TOXIC';
+  if(o>=65&&a>=65) return 'COMMIT';
+  if(a>=65&&o<65) return 'CONSULT';
+  if(o<40&&a<40) return 'WAIT';
+  return 'HOLD';
+}
+
+function toXY(cx,cy,r,deg){
+  const rad = deg*Math.PI/180;
+  return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)];
+}
+
+function arcPath(cx,cy,r,a1,a2){
+  const [x1,y1]=toXY(cx,cy,r,a1);
+  const [x2,y2]=toXY(cx,cy,r,a2);
+  const diff=((a2-a1)+360)%360;
+  const large=diff>180?1:0;
+  return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)}`;
+}
+
+// ── DRAW GAUGE ──
+function drawGauge(svgId, score, color){
+  const svg = document.getElementById(svgId);
+  const CX=80, CY=90, RO=72, RI=56;
+  const START=135, SWEEP=270;
+  const endAngle = START + (score/100)*SWEEP;
+
+  // BG track
+  const bgEnd = START+SWEEP;
+  const p1=arcPath(CX,CY,RO,START,bgEnd);
+  const p1i=arcPath(CX,CY,RI,bgEnd,START);
+  const [sx,sy]=toXY(CX,CY,RO,START);
+  const [ex,ey]=toXY(CX,CY,RI,START);
+  const bgPath=`${p1} L${toXY(CX,CY,RI,bgEnd)[0].toFixed(2)},${toXY(CX,CY,RI,bgEnd)[1].toFixed(2)} ${p1i} Z`;
+  const bg=document.createElementNS('http://www.w3.org/2000/svg','path');
+  bg.setAttribute('d',bgPath);
+  bg.setAttribute('fill','rgba(255,255,255,0.05)');
+  svg.appendChild(bg);
+
+  // Score fill
+  if(score>0){
+    const ea=Math.min(endAngle, START+SWEEP-0.1);
+    const fp=arcPath(CX,CY,RO,START,ea);
+    const fpi=arcPath(CX,CY,RI,ea,START);
+    const [sx2,sy2]=toXY(CX,CY,RI,ea);
+    const fillPath=`${fp} L${sx2.toFixed(2)},${sy2.toFixed(2)} ${fpi} Z`;
+    const fill=document.createElementNS('http://www.w3.org/2000/svg','path');
+    fill.setAttribute('d',fillPath);
+    fill.setAttribute('fill',color);
+    fill.setAttribute('opacity','0.85');
+    svg.appendChild(fill);
+  }
+
+  // Threshold line at 65
+  const t65=START+(65/100)*SWEEP;
+  const [tx1,ty1]=toXY(CX,CY,RI-4,t65);
+  const [tx2,ty2]=toXY(CX,CY,RO+4,t65);
+  const tl=document.createElementNS('http://www.w3.org/2000/svg','line');
+  tl.setAttribute('x1',tx1.toFixed(2));tl.setAttribute('y1',ty1.toFixed(2));
+  tl.setAttribute('x2',tx2.toFixed(2));tl.setAttribute('y2',ty2.toFixed(2));
+  tl.setAttribute('stroke','rgba(255,255,255,0.2)');tl.setAttribute('stroke-width','1');
+  svg.appendChild(tl);
+
+  // Threshold label
+  const [tlx,tly]=toXY(CX,CY,RO+10,t65);
+  const tlt=document.createElementNS('http://www.w3.org/2000/svg','text');
+  tlt.setAttribute('x',tlx.toFixed(2));tlt.setAttribute('y',tly.toFixed(2));
+  tlt.setAttribute('text-anchor','middle');tlt.setAttribute('dominant-baseline','middle');
+  tlt.setAttribute('font-family','JetBrains Mono,monospace');tlt.setAttribute('font-size','7');
+  tlt.setAttribute('fill','rgba(255,255,255,0.2)');tlt.textContent='65';
+  svg.appendChild(tlt);
+
+  // Needle
+  const [nx,ny]=toXY(CX,CY,RO-4,endAngle);
+  const needle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+  needle.setAttribute('cx',nx.toFixed(2));needle.setAttribute('cy',ny.toFixed(2));
+  needle.setAttribute('r','3.5');needle.setAttribute('fill','#fff');
+  svg.appendChild(needle);
+
+  // Start/end labels
+  const labels=[{a:START,t:'0'},{a:START+SWEEP,t:'100'}];
+  labels.forEach(({a,t})=>{
+    const [lx,ly]=toXY(CX,CY,RO+12,a);
+    const lt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lt.setAttribute('x',lx.toFixed(2));lt.setAttribute('y',ly.toFixed(2));
+    lt.setAttribute('text-anchor','middle');lt.setAttribute('dominant-baseline','middle');
+    lt.setAttribute('font-family','JetBrains Mono,monospace');lt.setAttribute('font-size','8');
+    lt.setAttribute('fill','rgba(240,236,228,0.2)');lt.textContent=t;
+    svg.appendChild(lt);
+  });
+}
+
+// ── DRAW MINI BARS ──
+function drawMiniBars(containerId, metrics, color){
+  const container=document.getElementById(containerId);
+  metrics.forEach(m=>{
+    const div=document.createElement('div');
+    div.className='gbr-item';
+    div.innerHTML=`
+      <div class="gbr-name" title="${m.name}">${m.short}</div>
+      <div class="gbr-track"><div class="gbr-fill" style="width:${m.val}%;background:${color}"></div></div>
+      <div class="gbr-val" style="color:${color}">${m.val}</div>`;
+    container.appendChild(div);
+  });
+}
+
+// ── DRAW RADAR ──
+function drawRadar(){
+  const svg=document.getElementById('radar-svg');
+  const CX=160, CY=150, R=120;
+  const all=[...DATA.opt,...DATA.auth,...DATA.price];
+  const N=15;
+  const colors=[...Array(5).fill(COLORS.opt),...Array(5).fill(COLORS.auth),...Array(5).fill(COLORS.price)];
+
+  // Grid rings
+  [25,50,75,100].forEach(ring=>{
+    const pts=Array.from({length:N},(_,i)=>{
+      const a=(i/N)*360-90;
+      const [x,y]=toXY(CX,CY,(ring/100)*R,a);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points',pts);
+    poly.setAttribute('fill','none');
+    poly.setAttribute('stroke','rgba(255,255,255,0.06)');
+    poly.setAttribute('stroke-width','0.5');
+    svg.insertBefore(poly,svg.firstChild);
+
+    // Ring label
+    const [lx,ly]=toXY(CX,CY,(ring/100)*R,-90);
+    const lt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lt.setAttribute('x',lx.toFixed(1));lt.setAttribute('y',(ly-4).toFixed(1));
+    lt.setAttribute('text-anchor','middle');lt.setAttribute('font-family','JetBrains Mono,monospace');
+    lt.setAttribute('font-size','7');lt.setAttribute('fill','rgba(255,255,255,0.15)');
+    lt.textContent=ring;
+    svg.appendChild(lt);
+  });
+
+  // Threshold ring at 65
+  const t65pts=Array.from({length:N},(_,i)=>{
+    const a=(i/N)*360-90;
+    const [x,y]=toXY(CX,CY,(65/100)*R,a);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const t65poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  t65poly.setAttribute('points',t65pts);
+  t65poly.setAttribute('fill','none');
+  t65poly.setAttribute('stroke','rgba(255,255,255,0.15)');
+  t65poly.setAttribute('stroke-width','0.75');
+  t65poly.setAttribute('stroke-dasharray','3,2');
+  svg.appendChild(t65poly);
+
+  // Spokes
+  for(let i=0;i<N;i++){
+    const a=(i/N)*360-90;
+    const [x,y]=toXY(CX,CY,R,a);
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',CX);line.setAttribute('y1',CY);
+    line.setAttribute('x2',x.toFixed(1));line.setAttribute('y2',y.toFixed(1));
+    line.setAttribute('stroke','rgba(255,255,255,0.04)');line.setAttribute('stroke-width','0.5');
+    svg.appendChild(line);
+  }
+
+  // Score polygon
+  const scorePts=all.map((m,i)=>{
+    const a=(i/N)*360-90;
+    const [x,y]=toXY(CX,CY,(m.val/100)*R,a);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  // Layer-colored segments
+  ['opt','auth','price'].forEach((layer,li)=>{
+    const layerData=DATA[layer];
+    const offset=li*5;
+    const color=COLORS[layer];
+    const pts=layerData.map((m,i)=>{
+      const a=((offset+i)/N)*360-90;
+      const [x,y]=toXY(CX,CY,(m.val/100)*R,a);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    pts.push(`${CX},${CY}`);
+    const poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points',pts.join(' '));
+    poly.setAttribute('fill',color);
+    poly.setAttribute('opacity','0.12');
+    poly.setAttribute('stroke',color);
+    poly.setAttribute('stroke-width','1');
+    poly.setAttribute('stroke-opacity','0.6');
+    svg.appendChild(poly);
+  });
+
+  // Score dots + labels
+  all.forEach((m,i)=>{
+    const a=(i/N)*360-90;
+    const [x,y]=toXY(CX,CY,(m.val/100)*R,a);
+    const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',x.toFixed(1));dot.setAttribute('cy',y.toFixed(1));
+    dot.setAttribute('r','3');dot.setAttribute('fill',colors[i]);
+    svg.appendChild(dot);
+
+    // Labels
+    const [lx,ly]=toXY(CX,CY,R+16,a);
+    const lt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lt.setAttribute('x',lx.toFixed(1));lt.setAttribute('y',ly.toFixed(1));
+    lt.setAttribute('text-anchor','middle');lt.setAttribute('dominant-baseline','middle');
+    lt.setAttribute('font-family','JetBrains Mono,monospace');lt.setAttribute('font-size','7.5');
+    lt.setAttribute('fill',colors[i]);lt.setAttribute('opacity','0.7');
+    lt.textContent=m.short;
+    svg.appendChild(lt);
+  });
+}
+
+// ── DRAW FOREST PLOT ──
+function drawForest(){
+  const container=document.getElementById('forest-rows');
+  const all=[
+    ...DATA.opt.map(m=>({...m,layer:'opt',color:COLORS.opt})),
+    ...DATA.auth.map(m=>({...m,layer:'auth',color:COLORS.auth})),
+    ...DATA.price.map(m=>({...m,layer:'price',color:COLORS.price})),
+  ];
+
+  all.forEach(m=>{
+    const ci=CI_WIDTH[m.mode];
+    const lo=Math.max(0,m.val-ci);
+    const hi=Math.min(100,m.val+ci);
+    const pct=v=>`${v}%`;
+    const bclass={auto:'fb-auto',semi:'fb-semi',human:'fb-human'}[m.mode];
+
+    const row=document.createElement('div');
+    row.className='forest-row';
+    row.innerHTML=`
+      <div>
+        <div class="fr-name">${m.name}</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+          <div style="width:5px;height:5px;border-radius:50%;background:${m.color};flex-shrink:0"></div>
+          <span class="fr-layer" style="color:${m.color}">${m.layer.toUpperCase()}</span>
+          <span class="fr-badge ${bclass}">${m.mode}</span>
+        </div>
+      </div>
+      <div class="fr-track">
+        <div class="fr-bg"></div>
+        <div class="fr-ci" style="left:${lo}%;width:${hi-lo}%;background:${m.color}"></div>
+        <div class="fr-tick-lo" style="left:${lo}%;color:${m.color}"></div>
+        <div class="fr-tick-hi" style="left:${hi}%;color:${m.color}"></div>
+        <div class="fr-dot" style="left:${m.val}%;background:${m.color}"></div>
+        ${m.val>=65?`<div style="position:absolute;left:65%;top:0;bottom:0;width:0.5px;background:rgba(255,255,255,0.15)"></div>`:''}
+      </div>
+      <div class="fr-val" style="color:${m.color}">${m.val}</div>`;
+    container.appendChild(row);
+  });
+}
+
+// ── DRAW SIGNAL BARS ──
+function drawSignalBars(){
+  const container=document.getElementById('signal-grid');
+  const groups=[
+    {key:'opt',label:'Optimization Layer',color:COLORS.opt,data:DATA.opt},
+    {key:'auth',label:'Authenticity Layer',color:COLORS.auth,data:DATA.auth},
+    {key:'price',label:'Pricing Layer',color:COLORS.price,data:DATA.price},
+  ];
+
+  groups.forEach(g=>{
+    const gl=document.createElement('div');
+    gl.className='sig-group-label';
+    gl.style.color=g.color;
+    gl.textContent=g.label;
+    gl.style.gridColumn='1/-1';
+    container.appendChild(gl);
+
+    g.data.forEach(m=>{
+      const row=document.createElement('div');
+      row.className='sig-row';
+      const thresholdPassed=m.val>=65;
+      row.innerHTML=`
+        <div style="display:flex;align-items:center;gap:0">
+          <span class="sig-layer-dot" style="background:${g.color}"></span>
+          <span class="sig-name">${m.name}</span>
+        </div>
+        <div style="position:relative">
+          <div class="sig-track">
+            <div class="sig-fill" style="width:${m.val}%;background:${thresholdPassed?g.color:'rgba(240,128,128,0.6)'}"></div>
+          </div>
+          <div style="position:absolute;left:65%;top:-2px;bottom:-2px;width:0.75px;background:rgba(255,255,255,0.18)"></div>
+        </div>
+        <div class="sig-val" style="color:${thresholdPassed?g.color:'var(--toxic)'}">${m.val}</div>`;
+      container.appendChild(row);
+    });
+  });
+}
+
+// ── VERDICT UPDATE ──
+function updateVerdict(){
+  const o=avg(DATA.opt), a=avg(DATA.auth), p=avg(DATA.price);
+  const k=classifyNerva(o,a);
+  const v=VERDICT_DATA[k];
+
+  document.getElementById('vc-state').textContent=k;
+  document.getElementById('vc-state').style.color=v.c;
+  document.getElementById('vc-tag').textContent=v.tag;
+  document.getElementById('vc-reason').textContent=v.reason;
+  document.getElementById('vc-action').textContent=v.action;
+  document.getElementById('vc-action').style.color=v.c;
+  document.getElementById('vcs-opt').textContent=o;
+  document.getElementById('vcs-auth').textContent=a;
+  document.getElementById('vcs-price').textContent=p;
+  document.getElementById('gscore-opt').textContent=o;
+  document.getElementById('gscore-auth').textContent=a;
+  document.getElementById('gscore-price').textContent=p;
+
+  // Probability band position: maps composite quality to 0-100%
+  // Simple: auth/100 * 100 for band position
+  const bandPos = Math.min(95, Math.max(5, a));
+  document.getElementById('pb-marker').style.left=bandPos+'%';
+
+  document.getElementById('vcard-time').textContent=new Date().toLocaleTimeString();
+}
+
+// ── INIT ──
+function init(){
+  const o=avg(DATA.opt), a=avg(DATA.auth), p=avg(DATA.price);
+  drawGauge('svg-opt', o, COLORS.opt);
+  drawGauge('svg-auth', a, COLORS.auth);
+  drawGauge('svg-price', p, COLORS.price);
+  drawMiniBars('gbr-opt', DATA.opt, COLORS.opt);
+  drawMiniBars('gbr-auth', DATA.auth, COLORS.auth);
+  drawMiniBars('gbr-price', DATA.price, COLORS.price);
+  drawRadar();
+  drawForest();
+  drawSignalBars();
+  updateVerdict();
+
+  // Timestamp
+  document.getElementById('vcard-time').textContent=new Date().toLocaleTimeString();
+}
+
+init();
+</script>
+</body>
+</html>
